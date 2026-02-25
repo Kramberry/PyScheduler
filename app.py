@@ -128,16 +128,18 @@ def index():
         for emp in employees:
             shifts_for_emp = []
             for day in DAYS:
-                role = request.form.get(f"{emp}_{day}_role", "").strip()
+                roles = request.form.getlist(f"{emp}_{day}_role")
+                roles = [r.strip() for r in roles if r.strip()]
                 start = request.form.get(f"{emp}_{day}_start", "").strip()
                 end = request.form.get(f"{emp}_{day}_end", "").strip()
 
-                if role == "PTO":
+                role_text = ", ".join(roles)
+                if "PTO" in roles:
                     cell_text = "PTO"
-                elif role and start and end:
-                    cell_text = f"{start} - {end}\n{role}"
-                elif role:
-                    cell_text = role
+                elif roles and start and end:
+                    cell_text = f"{start} - {end}\n{role_text}"
+                elif roles:
+                    cell_text = role_text
                 else:
                     cell_text = ""
                     
@@ -155,7 +157,7 @@ def index():
             saved_data["schedule"][emp] = {}
             for day in DAYS:
                 saved_data["schedule"][emp][day] = {
-                    "role": request.form.get(f"{emp}_{day}_role", ""),
+                    "role": request.form.getlist(f"{emp}_{day}_role"),
                     "start": request.form.get(f"{emp}_{day}_start", ""),
                     "end": request.form.get(f"{emp}_{day}_end", "")
                 }
@@ -205,22 +207,6 @@ def index():
             cell.fill = header_fill
             cell.alignment = Alignment(horizontal="center", vertical="center")
 
-        ROLE_COLORS = {
-            "Printer": "CCFFFF",
-            "Sealer": "CCFFCC",
-            "Shipper": "FFE5CC",
-            "Production Coord.": "E6CCFF",
-            "PTO": "FFCCCC",
-        }
-
-        for row in ws.iter_rows(min_row=3, min_col=2, max_col=6):
-            for cell in row:
-                if not cell.value:
-                    continue
-                for role, color in ROLE_COLORS.items():
-                    if role in str(cell.value):
-                        cell.fill = PatternFill(start_color=color, fill_type="solid")
-                        break
 
         thin_border = Border(
             left=Side(style="thin"),
@@ -260,7 +246,7 @@ def export_pdf():
         saved_data["schedule"][emp] = {}
         for day in DAYS:
             saved_data["schedule"][emp][day] = {
-                "role": request.form.get(f"{emp}_{day}_role", ""),
+                "role": request.form.getlist(f"{emp}_{day}_role"),
                 "start": request.form.get(f"{emp}_{day}_start", ""),
                 "end": request.form.get(f"{emp}_{day}_end", "")
             }
@@ -292,13 +278,7 @@ def export_pdf():
     styles = getSampleStyleSheet()
     elements = []
 
-    ROLE_COLORS = {
-        "Printer": colors.HexColor("#CCFFFF"),
-        "Sealer": colors.HexColor("#CCFFCC"),
-        "Shipper": colors.HexColor("#FFE5CC"),
-        "Production Coord.": colors.HexColor("#E6CCFF"),
-        "PTO": colors.HexColor("#FFCCCC"),
-    }
+   
 
     # Title
     elements.append(Paragraph("<b>Weekly Schedule</b>", styles["Title"]))
@@ -308,18 +288,30 @@ def export_pdf():
     
 
     # Table data
-    table_data = [["Employee"] + DAYS]
+    table_data = [["Employee"] + DAYS + ["Total Hours"]]
     for emp, day_data in saved["schedule"].items():
         row = [emp]
+        total_hours = 0
         for d in DAYS:
             cell = day_data[d]
-            if cell["role"] == "PTO":
-                row.append("PTO")
-            else:
-                row.append(f"{cell['start']} - {cell['end']}\n{cell['role']}" )
-        table_data.append(row)
+            roles = cell["role"]
 
-    col_widths = [90] + [85] * len(DAYS)
+            if isinstance(roles, list) and "PTO" in roles:
+                row.append("PTO")
+                total_hours += 8
+            elif cell["start"] and cell["end"] and cell["role"]:
+                role_text = ", ".join(roles) if isinstance(roles, list) else roles
+                text = f"{cell['start']} - {cell['end']}\n{role_text}"
+                row.append(text)
+                total_hours += calculate_hours(text)
+
+            else:
+                row.append("")
+        row.append(f"{total_hours:.1f}")
+        table_data.append(row)
+    table_data = [row for row in table_data if any (cell for cell in row)]  # filter out empty rows
+
+    col_widths = [90] + [85] * len(DAYS) + [70]
 
     table = Table(
         table_data,
@@ -348,16 +340,7 @@ def export_pdf():
         ("FONTSIZE", (0, 1), (-1, -1), 9),
 
 ]))
-    for row_idx, (emp,day_data) in enumerate(saved["schedule"].items(), start=1):
-        for col_idx, day in enumerate(DAYS, start=1):
-            role = day_data[day]["role"]
-            for role_name, color in ROLE_COLORS.items():
-                if role_name in role:
-                    table.setStyle(TableStyle([
-                        ("BACKGROUND", (col_idx, row_idx), (col_idx, row_idx), color)
-                    ]))
-                    break
-
+   
     elements.append(table)
 
     doc.build(elements)

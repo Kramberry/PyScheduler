@@ -1,409 +1,402 @@
 {
-  "week_start": "2025-12-16",
+  "week_start": "2026-02-22",
   "schedule": {
     "Nora": {
       "Monday": {
-        "role": "Printer",
-        "start": "8:00 AM",
-        "end": "6:30 PM"
+        "role": [
+          "Printer",
+          "Sealer"
+        ],
+        "start": "1:00 AM",
+        "end": "1:30 AM"
       },
       "Tuesday": {
-        "role": "Printer",
-        "start": "8:00 AM",
-        "end": "6:30 PM"
+        "role": [
+          "Printer"
+        ],
+        "start": "1:00 AM",
+        "end": "1:30 AM"
       },
       "Wednesday": {
-        "role": "Printer",
-        "start": "8:00 AM",
-        "end": "6:30 PM"
+        "role": [
+          "Printer"
+        ],
+        "start": "1:00 AM",
+        "end": "1:30 AM"
       },
       "Thursday": {
-        "role": "Printer",
-        "start": "9:00 AM",
-        "end": "6:00 PM"
+        "role": [
+          "Printer",
+          "Shipper"
+        ],
+        "start": "1:00 AM",
+        "end": "1:30 AM"
       },
       "Friday": {
-        "role": "Printer",
-        "start": "8:00 AM",
-        "end": "6:30 PM"
+        "role": [
+          "Printer",
+          "Shipper",
+          "Production Coord."
+        ],
+        "start": "1:00 AM",
+        "end": "1:30 AM"
       }
     },
     "Viviana": {
       "Monday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "1:30 AM",
+        "end": "1:30 AM"
       },
       "Tuesday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [
+          "PTO"
+        ],
+        "start": "",
+        "end": ""
       },
       "Wednesday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Thursday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Friday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       }
     },
     "Sonia": {
       "Monday": {
-        "role": "Sealer",
-        "start": "9:30 PM",
-        "end": "6:30 PM"
+        "role": [
+          "Sealer"
+        ],
+        "start": "1:00 AM",
+        "end": "1:30 AM"
       },
       "Tuesday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [
+          "Sealer"
+        ],
+        "start": "1:00 AM",
+        "end": "1:00 AM"
       },
       "Wednesday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Thursday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Friday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       }
     },
     "Carlet": {
       "Monday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Tuesday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Wednesday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Thursday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Friday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       }
     },
     "Marisol": {
       "Monday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Tuesday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Wednesday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Thursday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Friday": {
-        "role": "Shipper",
-        "start": "9:30 AM",
-        "end": "6:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       }
     },
     "Patricia": {
       "Monday": {
-        "role": "Production Coord.",
-        "start": "8:00 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Tuesday": {
-        "role": "Production Coord.",
-        "start": "8:00 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Wednesday": {
-        "role": "Production Coord.",
-        "start": "8:00 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Thursday": {
-        "role": "Production Coord.",
-        "start": "8:00 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Friday": {
-        "role": "Production Coord.",
-        "start": "8:00 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       }
     },
     "Trinidad": {
       "Monday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Tuesday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Wednesday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Thursday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Friday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       }
     },
     "Yessica": {
       "Monday": {
-        "role": "Printer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Tuesday": {
-        "role": "Printer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Wednesday": {
-        "role": "Printer",
-        "start": "9:30 AM",
-        "end": "6:30 AM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Thursday": {
-        "role": "Printer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Friday": {
-        "role": "Printer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       }
     },
     "Marcia": {
       "Monday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Tuesday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Wednesday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Thursday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Friday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       }
     },
     "Brandon": {
       "Monday": {
-        "role": "PTO",
+        "role": [],
         "start": "",
         "end": ""
       },
       "Tuesday": {
-        "role": "PTO",
+        "role": [],
         "start": "",
         "end": ""
       },
       "Wednesday": {
-        "role": "PTO",
+        "role": [],
         "start": "",
         "end": ""
       },
       "Thursday": {
-        "role": "PTO",
+        "role": [],
         "start": "",
         "end": ""
       },
       "Friday": {
-        "role": "PTO",
+        "role": [],
         "start": "",
         "end": ""
-      }
-    },
-    "Matthew": {
-      "Monday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
-      },
-      "Tuesday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
-      },
-      "Wednesday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
-      },
-      "Thursday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
-      },
-      "Friday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
       }
     },
     "Sue": {
       "Monday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Tuesday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Wednesday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Thursday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Friday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       }
     },
     "Raishod": {
       "Monday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Tuesday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Wednesday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Thursday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Friday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       }
     },
     "Levent": {
       "Monday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Tuesday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Wednesday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Thursday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Friday": {
-        "role": "Sealer",
-        "start": "9:30 AM",
-        "end": "6:30 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       }
     },
     "Carolina": {
       "Monday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Tuesday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Wednesday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Thursday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       },
       "Friday": {
-        "role": "Shipper",
-        "start": "10:00 AM",
-        "end": "7:00 PM"
+        "role": [],
+        "start": "",
+        "end": ""
       }
     }
   }

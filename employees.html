@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Manage Employees</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h1 { text-align: center; }
+    .back-link { margin-bottom: 20px; }
+    ul { list-style-type: none; padding: 0; }
+    li { margin: 4px 0; }
+    button { margin-top: 10px; padding: 6px 14px; }
+    input[type="text"] { padding: 4px; width: 200px; }
+  </style>
+</head>
+<body>
+  <h1>Manage Employees</h1>
+
+  <div class="back-link">
+    <a href="{{ url_for('index') }}">&larr; Back to Schedule</a>
+  </div>
+
+  <form method="POST">
+    <h3>Current Employees</h3>
+    <ul>
+      {% for emp in employees %}
+      <li>
+        <label>
+          <input type="checkbox" name="delete_emp" value="{{ emp }}">
+          {{ emp }}
+        </label>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <button type="submit">Delete Selected</button>
+
+    <hr>
+
+    <h3>Add New Employee</h3>
+    <input type="text" name="new_employee" placeholder="Employee name" />
+    <button type="submit">Add</button>
+  </form>
+</body>
+</html>

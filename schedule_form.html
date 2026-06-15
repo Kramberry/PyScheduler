@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en" class="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weekly Scheduler</title>
+  <script>if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');</script>
+  <script>
+    (function() {
+      const img = localStorage.getItem('bgImage');
+      if (!img) return;
+      const opacity = (localStorage.getItem('bgOpacity') || 25) / 100;
+      const blur = parseFloat(localStorage.getItem('bgBlur') || 0);
+      const s = document.createElement('style');
+      s.textContent = '#bg-layer{background-image:url("' + img + '");opacity:' + opacity + (blur > 0 ? ';filter:blur(' + blur + 'px);transform:scale(1.05)' : '') + '}';
+      document.head.appendChild(s);
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .emp-row:hover { background-color: #f8fafc; }
+    .dark .emp-row:hover { background-color: #1e293b; }
+    .role-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #e0f2fe; color: #0369a1;
+      border-radius: 9999px; padding: 2px 10px;
+      font-size: 0.72rem; font-weight: 500;
+      white-space: nowrap;
+    }
+    .dark .role-pill { background: #0c4a6e; color: #7dd3fc; }
+    .role-pill button { line-height: 1; color: #0369a1; }
+    .dark .role-pill button { color: #7dd3fc; }
+    .role-pill button:hover { color: #ef4444; }
+    .day-cell { min-width: 180px; }
+    .sticky-header th { position: sticky; top: 0; z-index: 10; }
+    .table-scroll { overflow-x: auto; border-radius: 0.75rem; }
+    .time-row { display: flex; gap: 6px; align-items: center; }
+    .time-row input { width: 80px; }
+    .hours-badge { font-variant-numeric: tabular-nums; font-size: 0.78rem; }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 min-h-screen">
+
+  <div id="bg-layer" style="position:fixed;inset:0;background-size:cover;background-position:center;background-attachment:fixed;z-index:0;pointer-events:none;opacity:0;transition:opacity 0.3s,filter 0.3s;"></div>
+
+  <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+        <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-slate-800 dark:text-white font-semibold text-base leading-tight">ShiftDesk</h1>
+        <p class="text-slate-400 dark:text-slate-500 text-xs leading-tight">Weekly Scheduler</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="openSettings()"
+              class="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              title="Wallpaper settings">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+      </button>
+      <button id="dark-toggle" onclick="toggleDark()"
+              class="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              title="Toggle dark mode">
+        <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+        <svg id="icon-moon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"/>
+        </svg>
+      </button>
+      <a href="/employees"
+         class="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Manage Team
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-screen-2xl mx-auto px-4 py-8">
+
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 mb-6 flex flex-wrap items-end gap-5">
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Week Starting</label>
+        <input type="date" id="week_start_display" name="week_start_display"
+               value="{{ saved.week_start if saved and saved.week_start else '' }}"
+               class="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+               onchange="syncWeekStart(this.value); updateDateHeaders(this.value)"/>
+      </div>
+      <div id="week-label" class="text-sm text-slate-500 dark:text-slate-400 pb-2"></div>
+      <div class="ml-auto flex gap-3">
+        <button type="button" onclick="copyLastWeek()"
+                class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+          Copy Last Week
+        </button>
+        <button type="button" onclick="clearAll()"
+                class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+          Clear All
+        </button>
+        <button type="button" onclick="submitSchedule('xlsx')"
+                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          Export Excel
+        </button>
+        <button type="button" onclick="submitSchedule('pdf')"
+                class="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+          </svg>
+          Export PDF
+        </button>
+      </div>
+    </div>
+
+    <form id="schedule-form" method="POST" action="/">
+      <input type="hidden" name="week_start" id="week_start_hidden"
+             value="{{ saved.week_start if saved and saved.week_start else '' }}"/>
+    </form>
+    <form id="pdf-form" method="POST" action="/export-pdf">
+      <input type="hidden" name="week_start" id="week_start_pdf"
+             value="{{ saved.week_start if saved and saved.week_start else '' }}"/>
+    </form>
+
+    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div class="table-scroll">
+        <table class="w-full border-collapse text-sm">
+          <thead class="sticky-header">
+            <tr class="bg-slate-800 dark:bg-slate-900 text-white">
+              <th class="text-left px-5 py-3.5 font-semibold text-xs uppercase tracking-wider rounded-tl-xl w-36">Team Member</th>
+              {% for day in days %}
+              <th class="day-cell px-4 py-3.5 font-semibold text-xs uppercase tracking-wider text-center" id="header-{{ day }}">{{ day }}</th>
+              {% endfor %}
+              <th class="px-4 py-3.5 font-semibold text-xs uppercase tracking-wider text-center rounded-tr-xl w-24">Hours</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+            {% for emp in employees %}
+            <tr class="emp-row" id="row-{{ emp | replace(' ', '_') }}">
+              <td class="px-5 py-3 font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap align-top">
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    {{ emp[0] }}
+                  </div>
+                  {{ emp }}
+                </div>
+              </td>
+              {% for day in days %}
+              <td class="day-cell px-3 py-2 align-top border-l border-slate-100 dark:border-slate-700">
+                <div class="flex flex-col gap-1.5" id="cell-{{ emp | replace(' ', '_') }}-{{ day }}">
+                  <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox"
+                           class="pto-checkbox w-3.5 h-3.5 accent-amber-500"
+                           data-emp="{{ emp }}" data-day="{{ day }}"
+                           {% if saved and saved.schedule and emp in saved.schedule and saved.schedule[emp][day].role and 'PTO' in saved.schedule[emp][day].role %}checked{% endif %}
+                           onchange="togglePTO(this)"/>
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">PTO</span>
+                  </label>
+                  <div class="shift-wrapper flex flex-col gap-1.5"
+                       id="shift-{{ emp | replace(' ', '_') }}-{{ day }}"
+                       {% if saved and saved.schedule and emp in saved.schedule and saved.schedule[emp][day].role and 'PTO' in saved.schedule[emp][day].role %}style="display:none"{% endif %}>
+                    <div class="time-row">
+                      <input type="time"
+                             class="start-input border border-slate-200 dark:border-slate-600 rounded px-2 py-1 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                             data-emp="{{ emp }}" data-day="{{ day }}"
+                             value="{% if saved and saved.schedule and emp in saved.schedule %}{{ saved.schedule[emp][day].start | to24h }}{% endif %}"
+                             onchange="recalcRow('{{ emp }}')"/>
+                      <span class="text-slate-400 dark:text-slate-500 text-xs">-</span>
+                      <input type="time"
+                             class="end-input border border-slate-200 dark:border-slate-600 rounded px-2 py-1 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                             data-emp="{{ emp }}" data-day="{{ day }}"
+                             value="{% if saved and saved.schedule and emp in saved.schedule %}{{ saved.schedule[emp][day].end | to24h }}{% endif %}"
+                             onchange="recalcRow('{{ emp }}')"/>
+                    </div>
+                    <div class="role-area flex flex-wrap gap-1 items-center" id="roles-{{ emp | replace(' ', '_') }}-{{ day }}">
+                      {% if saved and saved.schedule and emp in saved.schedule %}
+                        {% for r in saved.schedule[emp][day].role %}
+                          {% if r != 'PTO' %}
+                          <span class="role-pill" data-role="{{ r }}">
+                            {{ r }}
+                            <button type="button" onclick="removeRole(this)" title="Remove">x</button>
+                          </span>
+                          {% endif %}
+                        {% endfor %}
+                      {% endif %}
+                      <input type="text" placeholder="+ Role"
+                             class="role-input text-xs border-0 outline-none bg-transparent text-slate-500 dark:text-slate-400 placeholder-slate-300 dark:placeholder-slate-600 w-16 min-w-0"
+                             data-emp="{{ emp }}" data-day="{{ day }}"
+                             onkeydown="handleRoleInput(event, this)"/>
+                    </div>
+                  </div>
+                </div>
+              </td>
+              {% endfor %}
+              <td class="px-4 py-3 text-center align-top">
+                <span class="hours-badge font-semibold text-slate-700 dark:text-slate-200" id="hours-{{ emp | replace(' ', '_') }}">-</span>
+                <span class="text-xs text-slate-400 dark:text-slate-500"> hrs</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="text-center text-xs text-slate-400 dark:text-slate-500 mt-5">
+      Press Enter after typing a role to add it · Check PTO to mark a full day off
+    </p>
+  </main>
+
+  <script>
+    const EMPLOYEES = {{ employees | tojson }};
+    const DAYS      = {{ days | tojson }};
+    const SAVED     = {{ saved | tojson if saved else '{}' }};
+
+    const knownRoles = new Set();
+    const knownTimes = new Set();
+    let activeInput  = null;
+
+    function buildKnownRoles() {
+      if (!SAVED || !SAVED.schedule) return;
+      Object.values(SAVED.schedule).forEach(empData => {
+        Object.values(empData).forEach(dayData => {
+          if (Array.isArray(dayData.role)) {
+            dayData.role.forEach(r => { if (r && r !== 'PTO') knownRoles.add(r); });
+          }
+        });
+      });
+    }
+
+    function buildKnownTimes() {
+      if (!SAVED || !SAVED.schedule) return;
+      Object.values(SAVED.schedule).forEach(empData => {
+        Object.values(empData).forEach(dayData => {
+          if (dayData.start) knownTimes.add(dayData.start);
+          if (dayData.end)   knownTimes.add(dayData.end);
+        });
+      });
+    }
+
+    function t12ToMinutes(t) {
+      const [time, period] = t.trim().split(' ');
+      let [h, m] = time.split(':').map(Number);
+      if (period === 'PM' && h !== 12) h += 12;
+      if (period === 'AM' && h === 12) h = 0;
+      return h * 60 + m;
+    }
+
+    function positionDropdown(input) {
+      const dropdown = document.getElementById('suggestion-dropdown');
+      const rect = input.getBoundingClientRect();
+      dropdown.style.top      = (rect.bottom + window.scrollY + 4) + 'px';
+      dropdown.style.left     = (rect.left   + window.scrollX)     + 'px';
+      dropdown.style.minWidth = Math.max(rect.width, 110) + 'px';
+    }
+
+    function showRoleSuggestions(input) {
+      const dropdown = document.getElementById('suggestion-dropdown');
+      const val = input.value.trim().toLowerCase();
+      const matches = [...knownRoles]
+        .filter(r => !val || r.toLowerCase().includes(val))
+        .slice(0, 10);
+      if (matches.length === 0) { dropdown.classList.add('hidden'); return; }
+      activeInput = input;
+      dropdown.innerHTML = matches.map(r =>
+        `<div class="suggestion-item px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 whitespace-nowrap" data-value="${r}">${r}</div>`
+      ).join('');
+      positionDropdown(input);
+      dropdown.classList.remove('hidden');
+    }
+
+    function showTimeSuggestions(input) {
+      const dropdown = document.getElementById('suggestion-dropdown');
+      const sorted = [...knownTimes].filter(t => t).sort((a, b) => t12ToMinutes(a) - t12ToMinutes(b));
+      if (sorted.length === 0) { dropdown.classList.add('hidden'); return; }
+      activeInput = input;
+      dropdown.innerHTML = sorted.map(t =>
+        `<div class="suggestion-item px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 whitespace-nowrap" data-value="${t}">${t}</div>`
+      ).join('');
+      positionDropdown(input);
+      dropdown.classList.remove('hidden');
+    }
+
+    function hideDropdown() {
+      document.getElementById('suggestion-dropdown').classList.add('hidden');
+      activeInput = null;
+    }
+
+    function empId(name) { return name.replace(/ /g, '_'); }
+
+    function to24h(val) {
+      if (!val) return '';
+      try {
+        const parts = val.trim().split(' ');
+        const [h, m] = parts[0].split(':').map(Number);
+        const period = parts[1];
+        let hour = h;
+        if (period === 'PM' && hour !== 12) hour += 12;
+        if (period === 'AM' && hour === 12) hour = 0;
+        return String(hour).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      } catch { return ''; }
+    }
+
+    function to12h(val) {
+      if (!val) return '';
+      let [h, m] = val.split(':').map(Number);
+      let period = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return h + ':' + String(m).padStart(2,'0') + ' ' + period;
+    }
+
+    function calcHours(start24, end24) {
+      if (!start24 || !end24) return 0;
+      let [sh, sm] = start24.split(':').map(Number);
+      let [eh, em] = end24.split(':').map(Number);
+      let diff = (eh * 60 + em) - (sh * 60 + sm);
+      return diff > 0 ? diff / 60 : 0;
+    }
+
+    function recalcRow(emp) {
+      let total = 0;
+      const id = empId(emp);
+      DAYS.forEach(day => {
+        const ptoBox = document.querySelector('.pto-checkbox[data-emp="' + emp + '"][data-day="' + day + '"]');
+        if (ptoBox && ptoBox.checked) { total += 8; return; }
+        const startEl = document.querySelector('.start-input[data-emp="' + emp + '"][data-day="' + day + '"]');
+        const endEl   = document.querySelector('.end-input[data-emp="' + emp + '"][data-day="' + day + '"]');
+        if (startEl && endEl) total += calcHours(startEl.value, endEl.value);
+      });
+      const badge = document.getElementById('hours-' + id);
+      if (badge) badge.textContent = total > 0 ? total.toFixed(1) : '-';
+    }
+
+    function handleRoleInput(e, input) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const val = input.value.trim();
+      if (!val) return;
+      addRolePill(input.dataset.emp, input.dataset.day, val);
+      input.value = '';
+    }
+
+    function addRolePill(emp, day, role) {
+      const area = document.getElementById('roles-' + empId(emp) + '-' + day);
+      const input = area.querySelector('.role-input');
+      const pill = document.createElement('span');
+      pill.className = 'role-pill';
+      pill.dataset.role = role;
+      pill.innerHTML = role + ' <button type="button" onclick="removeRole(this)" title="Remove">x</button>';
+      area.insertBefore(pill, input);
+      knownRoles.add(role);
+    }
+
+    function removeRole(btn) { btn.closest('.role-pill').remove(); }
+
+    function togglePTO(checkbox) {
+      const id = empId(checkbox.dataset.emp);
+      const shiftDiv = document.getElementById('shift-' + id + '-' + checkbox.dataset.day);
+      shiftDiv.style.display = checkbox.checked ? 'none' : '';
+      recalcRow(checkbox.dataset.emp);
+    }
+
+    function syncWeekStart(val) {
+      document.getElementById('week_start_hidden').value = val;
+      document.getElementById('week_start_pdf').value   = val;
+    }
+
+    function updateDateHeaders(val) {
+      if (!val) return;
+      const d = new Date(val + 'T00:00:00');
+      const opts = { month: 'short', day: 'numeric' };
+      const label = document.getElementById('week-label');
+      const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+      days.forEach((day, i) => {
+        const date = new Date(d);
+        date.setDate(d.getDate() + i);
+        const th = document.getElementById('header-' + day);
+        if (th) th.innerHTML = '<div>' + day + '</div><div class="text-blue-300 font-normal normal-case text-xs mt-0.5">' + date.toLocaleDateString('en-US', opts) + '</div>';
+      });
+      const endDate = new Date(d);
+      endDate.setDate(d.getDate() + 4);
+      if (label) label.textContent = d.toLocaleDateString('en-US', { month:'long', day:'numeric' }) + ' - ' + endDate.toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+    }
+
+    function copyLastWeek() {
+      if (!SAVED || !SAVED.schedule || Object.keys(SAVED.schedule).length === 0) {
+        alert('No previous schedule found. Export a schedule first to save one.');
+        return;
+      }
+      if (!confirm('Copy last week\'s shifts into the current schedule? This will overwrite any unsaved changes.')) return;
+
+      document.querySelectorAll('.start-input, .end-input').forEach(i => i.value = '');
+      document.querySelectorAll('.pto-checkbox').forEach(c => { c.checked = false; });
+      document.querySelectorAll('.shift-wrapper').forEach(d => d.style.display = '');
+      document.querySelectorAll('.role-pill').forEach(p => p.remove());
+
+      EMPLOYEES.forEach(emp => {
+        const empData = SAVED.schedule[emp];
+        if (!empData) return;
+        DAYS.forEach(day => {
+          const cell = empData[day];
+          if (!cell) return;
+          const roles = Array.isArray(cell.role) ? cell.role : [];
+
+          if (roles.includes('PTO')) {
+            const ptoBox = document.querySelector(`.pto-checkbox[data-emp="${emp}"][data-day="${day}"]`);
+            if (ptoBox) { ptoBox.checked = true; togglePTO(ptoBox); }
+          } else {
+            const startEl = document.querySelector(`.start-input[data-emp="${emp}"][data-day="${day}"]`);
+            const endEl   = document.querySelector(`.end-input[data-emp="${emp}"][data-day="${day}"]`);
+            if (startEl) startEl.value = to24h(cell.start);
+            if (endEl)   endEl.value   = to24h(cell.end);
+            roles.filter(r => r).forEach(r => addRolePill(emp, day, r));
+          }
+        });
+        recalcRow(emp);
+      });
+    }
+
+    function clearAll() {
+      if (!confirm('Clear all shifts for this week?')) return;
+      document.querySelectorAll('.start-input, .end-input').forEach(i => i.value = '');
+      document.querySelectorAll('.pto-checkbox').forEach(c => { c.checked = false; });
+      document.querySelectorAll('.shift-wrapper').forEach(d => d.style.display = '');
+      document.querySelectorAll('.role-pill').forEach(p => p.remove());
+      EMPLOYEES.forEach(emp => recalcRow(emp));
+    }
+
+    function collectAndInject(formEl) {
+      formEl.querySelectorAll('.injected').forEach(el => el.remove());
+      EMPLOYEES.forEach(emp => {
+        DAYS.forEach(day => {
+          const id = empId(emp);
+          const ptoBox  = document.querySelector('.pto-checkbox[data-emp="' + emp + '"][data-day="' + day + '"]');
+          const startEl = document.querySelector('.start-input[data-emp="' + emp + '"][data-day="' + day + '"]');
+          const endEl   = document.querySelector('.end-input[data-emp="' + emp + '"][data-day="' + day + '"]');
+          const roleArea = document.getElementById('roles-' + id + '-' + day);
+          const inject = (name, val) => {
+            const inp = document.createElement('input');
+            inp.type = 'hidden'; inp.name = name; inp.value = val;
+            inp.className = 'injected';
+            formEl.appendChild(inp);
+          };
+          if (ptoBox && ptoBox.checked) {
+            inject(emp + '_' + day + '_role', 'PTO');
+          } else {
+            const pills = roleArea ? [...roleArea.querySelectorAll('.role-pill')] : [];
+            if (pills.length === 0) inject(emp + '_' + day + '_role', '');
+            pills.forEach(p => inject(emp + '_' + day + '_role', p.dataset.role));
+            inject(emp + '_' + day + '_start', to12h(startEl ? startEl.value : ''));
+            inject(emp + '_' + day + '_end',   to12h(endEl   ? endEl.value   : ''));
+          }
+        });
+      });
+    }
+
+    function submitSchedule(type) {
+      const formEl = type === 'pdf'
+        ? document.getElementById('pdf-form')
+        : document.getElementById('schedule-form');
+      collectAndInject(formEl);
+      formEl.submit();
+    }
+
+    function applyBackground() {
+      const img     = localStorage.getItem('bgImage');
+      const opacity = (localStorage.getItem('bgOpacity') || 25) / 100;
+      const blur    = parseFloat(localStorage.getItem('bgBlur') || 0);
+      const layer   = document.getElementById('bg-layer');
+      if (img) {
+        layer.style.backgroundImage = `url('${img}')`;
+        layer.style.opacity   = opacity;
+        layer.style.filter    = blur > 0 ? `blur(${blur}px)` : 'none';
+        layer.style.transform = blur > 0 ? 'scale(1.05)' : 'none';
+      } else {
+        layer.style.backgroundImage = 'none';
+        layer.style.opacity = 0;
+      }
+    }
+
+    function openSettings() {
+      document.getElementById('settings-modal').classList.remove('hidden');
+      updateSettingsUI();
+    }
+
+    function closeSettings() {
+      document.getElementById('settings-modal').classList.add('hidden');
+    }
+
+    function updateSettingsUI() {
+      const img     = localStorage.getItem('bgImage');
+      const opacity = localStorage.getItem('bgOpacity') || 25;
+      const blur    = localStorage.getItem('bgBlur')    || 0;
+      const preview   = document.getElementById('bg-preview');
+      const label     = document.getElementById('bg-preview-label');
+      const removeBtn = document.getElementById('remove-bg-btn');
+      if (img) {
+        preview.style.backgroundImage = `url('${img}')`;
+        label.classList.add('hidden');
+        removeBtn.classList.remove('hidden');
+      } else {
+        preview.style.backgroundImage = '';
+        label.classList.remove('hidden');
+        removeBtn.classList.add('hidden');
+      }
+      document.getElementById('bg-opacity').value      = opacity;
+      document.getElementById('opacity-val').textContent = opacity + '%';
+      document.getElementById('bg-blur').value         = blur;
+      document.getElementById('blur-val').textContent  = blur + 'px';
+    }
+
+    function handleBgUpload(input) {
+      const file = input.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image too large (max 5 MB). Please choose a smaller file.');
+        input.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          localStorage.setItem('bgImage', e.target.result);
+        } catch {
+          alert('Could not save image — browser storage may be full. Try a smaller image.');
+          return;
+        }
+        applyBackground();
+        updateSettingsUI();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updateBgOpacity(val) {
+      localStorage.setItem('bgOpacity', val);
+      document.getElementById('opacity-val').textContent = val + '%';
+      applyBackground();
+    }
+
+    function updateBgBlur(val) {
+      localStorage.setItem('bgBlur', val);
+      document.getElementById('blur-val').textContent = val + 'px';
+      applyBackground();
+    }
+
+    function removeBg() {
+      localStorage.removeItem('bgImage');
+      document.getElementById('bg-file-input').value = '';
+      applyBackground();
+      updateSettingsUI();
+    }
+
+    function toggleDark() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      document.getElementById('icon-sun').classList.toggle('hidden', !isDark);
+      document.getElementById('icon-moon').classList.toggle('hidden', isDark);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const weekInput = document.getElementById('week_start_display');
+      if (weekInput.value) updateDateHeaders(weekInput.value);
+      EMPLOYEES.forEach(emp => recalcRow(emp));
+
+      const isDark = document.documentElement.classList.contains('dark');
+      document.getElementById('icon-sun').classList.toggle('hidden', !isDark);
+      document.getElementById('icon-moon').classList.toggle('hidden', isDark);
+
+      applyBackground();
+      buildKnownRoles();
+      buildKnownTimes();
+
+      document.addEventListener('focusin', e => {
+        if (e.target.classList.contains('role-input'))  showRoleSuggestions(e.target);
+        if (e.target.classList.contains('start-input') ||
+            e.target.classList.contains('end-input'))   showTimeSuggestions(e.target);
+      });
+      document.addEventListener('input', e => {
+        if (e.target.classList.contains('role-input')) showRoleSuggestions(e.target);
+      });
+      document.addEventListener('change', e => {
+        if ((e.target.classList.contains('start-input') ||
+             e.target.classList.contains('end-input')) && e.target.value) {
+          knownTimes.add(to12h(e.target.value));
+        }
+      });
+      document.addEventListener('focusout', e => {
+        if (e.target.classList.contains('role-input')  ||
+            e.target.classList.contains('start-input') ||
+            e.target.classList.contains('end-input'))  setTimeout(hideDropdown, 150);
+      });
+      document.addEventListener('click', e => {
+        const suggestion = e.target.closest('.suggestion-item');
+        if (suggestion && activeInput) {
+          if (activeInput.classList.contains('role-input')) {
+            addRolePill(activeInput.dataset.emp, activeInput.dataset.day, suggestion.dataset.value);
+            activeInput.value = '';
+          } else {
+            activeInput.value = to24h(suggestion.dataset.value);
+            recalcRow(activeInput.dataset.emp);
+          }
+          hideDropdown();
+          return;
+        }
+        if (!e.target.closest('#suggestion-dropdown')   &&
+            !e.target.classList.contains('role-input')  &&
+            !e.target.classList.contains('start-input') &&
+            !e.target.classList.contains('end-input'))  hideDropdown();
+      });
+      window.addEventListener('scroll', hideDropdown, true);
+    });
+  </script>
+  <div id="settings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40 dark:bg-black/60" onclick="closeSettings()"></div>
+    <div class="relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl p-6 w-full max-w-sm">
+
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-white">Wallpaper</h2>
+        <button onclick="closeSettings()"
+                class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div id="bg-preview"
+           class="w-full h-28 rounded-lg border border-slate-200 dark:border-slate-700 mb-4 bg-cover bg-center flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-900">
+        <span id="bg-preview-label" class="text-sm text-slate-400 dark:text-slate-500">No wallpaper set</span>
+      </div>
+
+      <label class="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-colors mb-4">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        Choose Image
+        <input type="file" id="bg-file-input" accept="image/*" onchange="handleBgUpload(this)" class="hidden"/>
+      </label>
+
+      <div class="mb-4">
+        <div class="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+          <span>Opacity</span><span id="opacity-val">25%</span>
+        </div>
+        <input type="range" id="bg-opacity" min="0" max="100" value="25"
+               oninput="updateBgOpacity(this.value)" class="w-full accent-blue-600"/>
+      </div>
+
+      <div class="mb-5">
+        <div class="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+          <span>Blur</span><span id="blur-val">0px</span>
+        </div>
+        <input type="range" id="bg-blur" min="0" max="20" value="0"
+               oninput="updateBgBlur(this.value)" class="w-full accent-blue-600"/>
+      </div>
+
+      <button onclick="removeBg()" id="remove-bg-btn"
+              class="hidden w-full px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+        Remove Wallpaper
+      </button>
+
+    </div>
+  </div>
+
+  <div id="suggestion-dropdown"
+       class="hidden absolute z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 min-w-28 max-h-48 overflow-y-auto">
+  </div>
+
+</body>
+</html>

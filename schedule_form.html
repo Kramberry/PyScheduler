@@ -38,7 +38,7 @@
     .sticky-header th { position: sticky; top: 0; z-index: 10; }
     .table-scroll { overflow-x: auto; border-radius: 0.75rem; }
     .time-row { display: flex; gap: 6px; align-items: center; }
-    .time-row input { width: 80px; }
+    .time-row select { width: 92px; }
     .hours-badge { font-variant-numeric: tabular-nums; font-size: 0.78rem; }
   </style>
 </head>
@@ -110,6 +110,13 @@
                 class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
           Clear All
         </button>
+        <button type="button" onclick="submitSchedule('print')"
+                class="px-4 py-2 text-sm font-medium text-slate-700 bg-amber-400 rounded-lg hover:bg-amber-500 transition-colors flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+          </svg>
+          Print Preview
+        </button>
         <button type="button" onclick="submitSchedule('xlsx')"
                 class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -133,6 +140,10 @@
     </form>
     <form id="pdf-form" method="POST" action="/export-pdf">
       <input type="hidden" name="week_start" id="week_start_pdf"
+             value="{{ saved.week_start if saved and saved.week_start else '' }}"/>
+    </form>
+    <form id="print-form" method="POST" action="/print-preview" target="_blank">
+      <input type="hidden" name="week_start" id="week_start_print"
              value="{{ saved.week_start if saved and saved.week_start else '' }}"/>
     </form>
 
@@ -174,22 +185,20 @@
                        id="shift-{{ emp | replace(' ', '_') }}-{{ day }}"
                        {% if saved and saved.schedule and emp in saved.schedule and saved.schedule[emp][day].role and 'PTO' in saved.schedule[emp][day].role %}style="display:none"{% endif %}>
                     <div class="time-row">
-                      <input type="time"
-                             class="start-input border border-slate-200 dark:border-slate-600 rounded px-2 py-1 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                             data-emp="{{ emp }}" data-day="{{ day }}"
-                             value="{% if saved and saved.schedule and emp in saved.schedule %}{{ saved.schedule[emp][day].start | to24h }}{% endif %}"
-                             onchange="recalcRow('{{ emp }}')"/>
+                      <select class="start-input border border-slate-200 dark:border-slate-600 rounded px-1 py-1 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                              data-emp="{{ emp }}" data-day="{{ day }}"
+                              data-value="{% if saved and saved.schedule and emp in saved.schedule %}{{ saved.schedule[emp][day].start | to24h }}{% endif %}"
+                              onchange="recalcRow('{{ emp }}')"></select>
                       <span class="text-slate-400 dark:text-slate-500 text-xs">-</span>
-                      <input type="time"
-                             class="end-input border border-slate-200 dark:border-slate-600 rounded px-2 py-1 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                             data-emp="{{ emp }}" data-day="{{ day }}"
-                             value="{% if saved and saved.schedule and emp in saved.schedule %}{{ saved.schedule[emp][day].end | to24h }}{% endif %}"
-                             onchange="recalcRow('{{ emp }}')"/>
+                      <select class="end-input border border-slate-200 dark:border-slate-600 rounded px-1 py-1 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                              data-emp="{{ emp }}" data-day="{{ day }}"
+                              data-value="{% if saved and saved.schedule and emp in saved.schedule %}{{ saved.schedule[emp][day].end | to24h }}{% endif %}"
+                              onchange="recalcRow('{{ emp }}')"></select>
                     </div>
                     <div class="role-area flex flex-wrap gap-1 items-center" id="roles-{{ emp | replace(' ', '_') }}-{{ day }}">
                       {% if saved and saved.schedule and emp in saved.schedule %}
                         {% for r in saved.schedule[emp][day].role %}
-                          {% if r != 'PTO' %}
+                          {% if r and r != 'PTO' %}
                           <span class="role-pill" data-role="{{ r }}">
                             {{ r }}
                             <button type="button" onclick="removeRole(this)" title="Remove">x</button>
@@ -222,13 +231,60 @@
     </p>
   </main>
 
+  <div id="settings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/40 dark:bg-black/60" onclick="closeSettings()"></div>
+    <div class="relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl p-6 w-full max-w-sm">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-base font-semibold text-slate-800 dark:text-white">Wallpaper</h2>
+        <button onclick="closeSettings()"
+                class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div id="bg-preview"
+           class="w-full h-28 rounded-lg border border-slate-200 dark:border-slate-700 mb-4 bg-cover bg-center flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-900">
+        <span id="bg-preview-label" class="text-sm text-slate-400 dark:text-slate-500">No wallpaper set</span>
+      </div>
+      <label class="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-colors mb-4">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        Choose Image
+        <input type="file" id="bg-file-input" accept="image/*" onchange="handleBgUpload(this)" class="hidden"/>
+      </label>
+      <div class="mb-4">
+        <div class="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+          <span>Opacity</span><span id="opacity-val">25%</span>
+        </div>
+        <input type="range" id="bg-opacity" min="0" max="100" value="25"
+               oninput="updateBgOpacity(this.value)" class="w-full accent-blue-600"/>
+      </div>
+      <div class="mb-5">
+        <div class="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+          <span>Blur</span><span id="blur-val">0px</span>
+        </div>
+        <input type="range" id="bg-blur" min="0" max="20" value="0"
+               oninput="updateBgBlur(this.value)" class="w-full accent-blue-600"/>
+      </div>
+      <button onclick="removeBg()" id="remove-bg-btn"
+              class="hidden w-full px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+        Remove Wallpaper
+      </button>
+    </div>
+  </div>
+
+  <div id="suggestion-dropdown"
+       class="hidden absolute z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 min-w-28 max-h-48 overflow-y-auto">
+  </div>
+
   <script>
     const EMPLOYEES = {{ employees | tojson }};
     const DAYS      = {{ days | tojson }};
     const SAVED     = {{ saved | tojson if saved else '{}' }};
 
     const knownRoles = new Set();
-    const knownTimes = new Set();
     let activeInput  = null;
 
     function buildKnownRoles() {
@@ -242,22 +298,20 @@
       });
     }
 
-    function buildKnownTimes() {
-      if (!SAVED || !SAVED.schedule) return;
-      Object.values(SAVED.schedule).forEach(empData => {
-        Object.values(empData).forEach(dayData => {
-          if (dayData.start) knownTimes.add(dayData.start);
-          if (dayData.end)   knownTimes.add(dayData.end);
-        });
+    function buildTimeSelects() {
+      const options = ['<option value="">--</option>'];
+      for (let total = 5 * 60; total <= 23 * 60 + 30; total += 30) {
+        const h = Math.floor(total / 60);
+        const m = total % 60;
+        const val = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+        options.push(`<option value="${val}">${to12h(val)}</option>`);
+      }
+      const optHtml = options.join('');
+      document.querySelectorAll('.start-input, .end-input').forEach(sel => {
+        const savedVal = sel.dataset.value || '';
+        sel.innerHTML = optHtml;
+        if (savedVal) sel.value = savedVal;
       });
-    }
-
-    function t12ToMinutes(t) {
-      const [time, period] = t.trim().split(' ');
-      let [h, m] = time.split(':').map(Number);
-      if (period === 'PM' && h !== 12) h += 12;
-      if (period === 'AM' && h === 12) h = 0;
-      return h * 60 + m;
     }
 
     function positionDropdown(input) {
@@ -278,18 +332,6 @@
       activeInput = input;
       dropdown.innerHTML = matches.map(r =>
         `<div class="suggestion-item px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 whitespace-nowrap" data-value="${r}">${r}</div>`
-      ).join('');
-      positionDropdown(input);
-      dropdown.classList.remove('hidden');
-    }
-
-    function showTimeSuggestions(input) {
-      const dropdown = document.getElementById('suggestion-dropdown');
-      const sorted = [...knownTimes].filter(t => t).sort((a, b) => t12ToMinutes(a) - t12ToMinutes(b));
-      if (sorted.length === 0) { dropdown.classList.add('hidden'); return; }
-      activeInput = input;
-      dropdown.innerHTML = sorted.map(t =>
-        `<div class="suggestion-item px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 whitespace-nowrap" data-value="${t}">${t}</div>`
       ).join('');
       positionDropdown(input);
       dropdown.classList.remove('hidden');
@@ -377,6 +419,7 @@
     function syncWeekStart(val) {
       document.getElementById('week_start_hidden').value = val;
       document.getElementById('week_start_pdf').value   = val;
+      document.getElementById('week_start_print').value = val;
     }
 
     function updateDateHeaders(val) {
@@ -415,7 +458,6 @@
           const cell = empData[day];
           if (!cell) return;
           const roles = Array.isArray(cell.role) ? cell.role : [];
-
           if (roles.includes('PTO')) {
             const ptoBox = document.querySelector(`.pto-checkbox[data-emp="${emp}"][data-day="${day}"]`);
             if (ptoBox) { ptoBox.checked = true; togglePTO(ptoBox); }
@@ -445,9 +487,9 @@
       EMPLOYEES.forEach(emp => {
         DAYS.forEach(day => {
           const id = empId(emp);
-          const ptoBox  = document.querySelector('.pto-checkbox[data-emp="' + emp + '"][data-day="' + day + '"]');
-          const startEl = document.querySelector('.start-input[data-emp="' + emp + '"][data-day="' + day + '"]');
-          const endEl   = document.querySelector('.end-input[data-emp="' + emp + '"][data-day="' + day + '"]');
+          const ptoBox   = document.querySelector('.pto-checkbox[data-emp="' + emp + '"][data-day="' + day + '"]');
+          const startEl  = document.querySelector('.start-input[data-emp="' + emp + '"][data-day="' + day + '"]');
+          const endEl    = document.querySelector('.end-input[data-emp="' + emp + '"][data-day="' + day + '"]');
           const roleArea = document.getElementById('roles-' + id + '-' + day);
           const inject = (name, val) => {
             const inp = document.createElement('input');
@@ -459,7 +501,6 @@
             inject(emp + '_' + day + '_role', 'PTO');
           } else {
             const pills = roleArea ? [...roleArea.querySelectorAll('.role-pill')] : [];
-            if (pills.length === 0) inject(emp + '_' + day + '_role', '');
             pills.forEach(p => inject(emp + '_' + day + '_role', p.dataset.role));
             inject(emp + '_' + day + '_start', to12h(startEl ? startEl.value : ''));
             inject(emp + '_' + day + '_end',   to12h(endEl   ? endEl.value   : ''));
@@ -469,9 +510,9 @@
     }
 
     function submitSchedule(type) {
-      const formEl = type === 'pdf'
-        ? document.getElementById('pdf-form')
-        : document.getElementById('schedule-form');
+      const formEl = type === 'pdf'   ? document.getElementById('pdf-form')
+                   : type === 'print' ? document.getElementById('print-form')
+                                      : document.getElementById('schedule-form');
       collectAndInject(formEl);
       formEl.submit();
     }
@@ -517,10 +558,10 @@
         label.classList.remove('hidden');
         removeBtn.classList.add('hidden');
       }
-      document.getElementById('bg-opacity').value      = opacity;
+      document.getElementById('bg-opacity').value       = opacity;
       document.getElementById('opacity-val').textContent = opacity + '%';
-      document.getElementById('bg-blur').value         = blur;
-      document.getElementById('blur-val').textContent  = blur + 'px';
+      document.getElementById('bg-blur').value          = blur;
+      document.getElementById('blur-val').textContent   = blur + 'px';
     }
 
     function handleBgUpload(input) {
@@ -582,102 +623,30 @@
 
       applyBackground();
       buildKnownRoles();
-      buildKnownTimes();
+      buildTimeSelects();
 
       document.addEventListener('focusin', e => {
-        if (e.target.classList.contains('role-input'))  showRoleSuggestions(e.target);
-        if (e.target.classList.contains('start-input') ||
-            e.target.classList.contains('end-input'))   showTimeSuggestions(e.target);
+        if (e.target.classList.contains('role-input')) showRoleSuggestions(e.target);
       });
       document.addEventListener('input', e => {
         if (e.target.classList.contains('role-input')) showRoleSuggestions(e.target);
       });
-      document.addEventListener('change', e => {
-        if ((e.target.classList.contains('start-input') ||
-             e.target.classList.contains('end-input')) && e.target.value) {
-          knownTimes.add(to12h(e.target.value));
-        }
-      });
       document.addEventListener('focusout', e => {
-        if (e.target.classList.contains('role-input')  ||
-            e.target.classList.contains('start-input') ||
-            e.target.classList.contains('end-input'))  setTimeout(hideDropdown, 150);
+        if (e.target.classList.contains('role-input')) setTimeout(hideDropdown, 150);
       });
       document.addEventListener('click', e => {
         const suggestion = e.target.closest('.suggestion-item');
         if (suggestion && activeInput) {
-          if (activeInput.classList.contains('role-input')) {
-            addRolePill(activeInput.dataset.emp, activeInput.dataset.day, suggestion.dataset.value);
-            activeInput.value = '';
-          } else {
-            activeInput.value = to24h(suggestion.dataset.value);
-            recalcRow(activeInput.dataset.emp);
-          }
+          addRolePill(activeInput.dataset.emp, activeInput.dataset.day, suggestion.dataset.value);
+          activeInput.value = '';
           hideDropdown();
           return;
         }
-        if (!e.target.closest('#suggestion-dropdown')   &&
-            !e.target.classList.contains('role-input')  &&
-            !e.target.classList.contains('start-input') &&
-            !e.target.classList.contains('end-input'))  hideDropdown();
+        if (!e.target.closest('#suggestion-dropdown') &&
+            !e.target.classList.contains('role-input')) hideDropdown();
       });
       window.addEventListener('scroll', hideDropdown, true);
     });
   </script>
-  <div id="settings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-black/40 dark:bg-black/60" onclick="closeSettings()"></div>
-    <div class="relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl p-6 w-full max-w-sm">
-
-      <div class="flex items-center justify-between mb-5">
-        <h2 class="text-base font-semibold text-slate-800 dark:text-white">Wallpaper</h2>
-        <button onclick="closeSettings()"
-                class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-      </div>
-
-      <div id="bg-preview"
-           class="w-full h-28 rounded-lg border border-slate-200 dark:border-slate-700 mb-4 bg-cover bg-center flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-900">
-        <span id="bg-preview-label" class="text-sm text-slate-400 dark:text-slate-500">No wallpaper set</span>
-      </div>
-
-      <label class="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-colors mb-4">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-        </svg>
-        Choose Image
-        <input type="file" id="bg-file-input" accept="image/*" onchange="handleBgUpload(this)" class="hidden"/>
-      </label>
-
-      <div class="mb-4">
-        <div class="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
-          <span>Opacity</span><span id="opacity-val">25%</span>
-        </div>
-        <input type="range" id="bg-opacity" min="0" max="100" value="25"
-               oninput="updateBgOpacity(this.value)" class="w-full accent-blue-600"/>
-      </div>
-
-      <div class="mb-5">
-        <div class="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
-          <span>Blur</span><span id="blur-val">0px</span>
-        </div>
-        <input type="range" id="bg-blur" min="0" max="20" value="0"
-               oninput="updateBgBlur(this.value)" class="w-full accent-blue-600"/>
-      </div>
-
-      <button onclick="removeBg()" id="remove-bg-btn"
-              class="hidden w-full px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-        Remove Wallpaper
-      </button>
-
-    </div>
-  </div>
-
-  <div id="suggestion-dropdown"
-       class="hidden absolute z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 min-w-28 max-h-48 overflow-y-auto">
-  </div>
-
 </body>
 </html>

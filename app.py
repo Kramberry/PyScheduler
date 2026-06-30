@@ -4,7 +4,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from reportlab.lib.pagesizes import LETTER
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import json
 import os
@@ -147,8 +147,8 @@ def index():
                 role_text = ", ".join(roles)
                 if "PTO" in roles:
                     cell_text = "PTO"
-                elif roles and start and end:
-                    cell_text = f"{start} - {end}\n{role_text}"
+                elif start and end:
+                    cell_text = f"{start} - {end}\n{role_text}" if role_text else f"{start} - {end}"
                 elif roles:
                     cell_text = role_text
                 else:
@@ -168,7 +168,7 @@ def index():
             saved_data["schedule"][emp] = {}
             for day in DAYS:
                 saved_data["schedule"][emp][day] = {
-                    "role": request.form.getlist(f"{emp}_{day}_role"),
+                    "role": [r for r in request.form.getlist(f"{emp}_{day}_role") if r.strip()],
                     "start": request.form.get(f"{emp}_{day}_start", ""),
                     "end": request.form.get(f"{emp}_{day}_end", "")
                 }
@@ -334,31 +334,37 @@ def export_pdf():
     elements.append(Spacer(1, 16))
     
 
-    # Table data
+    cell_style = ParagraphStyle('cell', fontSize=8, leading=11)
+    pto_style  = ParagraphStyle('pto',  fontSize=8, leading=11,
+                                textColor=colors.HexColor('#92400E'), fontName='Helvetica-Bold')
+
+    # Table data — page is 612pt wide, 36pt margins each side = 540pt available
+    # col widths: 80 + 81*5 + 55 = 540
     table_data = [["Employee"] + DAYS + ["Total Hours"]]
     for emp, day_data in saved["schedule"].items():
         row = [emp]
         total_hours = 0
         for d in DAYS:
             cell = day_data[d]
-            roles = cell["role"]
+            roles = [r for r in (cell["role"] if isinstance(cell["role"], list) else []) if r.strip()]
 
-            if isinstance(roles, list) and "PTO" in roles:
-                row.append("PTO")
+            if "PTO" in roles:
+                row.append(Paragraph("PTO", pto_style))
                 total_hours += 8
-            elif cell["start"] and cell["end"] and cell["role"]:
-                role_text = ", ".join(roles) if isinstance(roles, list) else roles
-                text = f"{cell['start']} - {cell['end']}\n{role_text}"
-                row.append(text)
-                total_hours += calculate_hours(text)
-
+            elif cell["start"] and cell["end"]:
+                role_text = ", ".join(roles)
+                para_text = f"{cell['start']} - {cell['end']}"
+                if role_text:
+                    para_text += f"<br/>{role_text}"
+                row.append(Paragraph(para_text, cell_style))
+                total_hours += calculate_hours(f"{cell['start']} - {cell['end']}")
             else:
                 row.append("")
         row.append(f"{total_hours:.1f}")
         table_data.append(row)
-    table_data = [row for row in table_data if any (cell for cell in row)]  # filter out empty rows
+    table_data = [row for row in table_data if any(cell for cell in row)]
 
-    col_widths = [90] + [85] * len(DAYS) + [70]
+    col_widths = [80] + [81] * len(DAYS) + [55]
 
     table = Table(
         table_data,
@@ -367,26 +373,17 @@ def export_pdf():
     )
 
     table.setStyle(TableStyle([
-    # Grid & header
-        ("GRID", (0, 0), (-1, -1), 1, colors.black),
-        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-        ("FONT", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONT", (0, 1), (0, -1), "Helvetica-Bold"),
-
-    # Alignment
-        ("ALIGN", (1, 1), (-1, -1), "LEFT"),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-
-    # Padding (THIS is the big improvement)
-        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-        ("TOPPADDING", (0, 0), (-1, -1), 10),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-
-    # Font size for body
-        ("FONTSIZE", (0, 1), (-1, -1), 9),
-
-]))
+        ("GRID",       (0, 0), (-1, -1), 1, colors.black),
+        ("BACKGROUND", (0, 0), (-1,  0), colors.lightgrey),
+        ("FONT",       (0, 0), (-1,  0), "Helvetica-Bold"),
+        ("FONT",       (0, 1), ( 0, -1), "Helvetica-Bold"),
+        ("VALIGN",     (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 6),
+        ("TOPPADDING",    (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("FONTSIZE",   (0, 0), (-1, -1), 9),
+    ]))
    
     elements.append(table)
 
@@ -396,6 +393,62 @@ def export_pdf():
   
                                                               
     
+# ------------------------------------
+# PRINT PREVIEW
+# ------------------------------------
+@app.route("/print-preview", methods=["POST"])
+def print_preview():
+    from datetime import datetime, timedelta
+    employees = load_employees()
+    week_start = request.form.get("week_start")
+
+    saved_data = {
+        "week_start": week_start,
+        "schedule": {}
+    }
+    for emp in employees:
+        saved_data["schedule"][emp] = {}
+        for day in DAYS:
+            saved_data["schedule"][emp][day] = {
+                "role": request.form.getlist(f"{emp}_{day}_role"),
+                "start": request.form.get(f"{emp}_{day}_start", ""),
+                "end": request.form.get(f"{emp}_{day}_end", "")
+            }
+    save_last_schedule(saved_data)
+
+    totals = {}
+    for emp in employees:
+        total = 0.0
+        for day in DAYS:
+            cell = saved_data["schedule"][emp][day]
+            roles = cell["role"]
+            if "PTO" in roles:
+                total += 8.0
+            elif cell["start"] and cell["end"]:
+                total += calculate_hours(f"{cell['start']} - {cell['end']}")
+        totals[emp] = total
+
+    role_color_palette = [
+        "#2563EB", "#7C3AED", "#0D9488", "#EA580C", "#DB2777",
+        "#16A34A", "#D97706", "#DC2626", "#0891B2", "#7C2D12",
+    ]
+    role_colors = {}
+    for emp in employees:
+        for day in DAYS:
+            for role in saved_data["schedule"][emp][day]["role"]:
+                if role and role != "PTO" and role not in role_colors:
+                    role_colors[role] = role_color_palette[len(role_colors) % len(role_color_palette)]
+
+    return render_template(
+        "print_preview.html",
+        employees=employees,
+        days=DAYS,
+        saved=saved_data,
+        totals=totals,
+        role_colors=role_colors,
+    )
+
+
 # ------------------------------------
 # EMPLOYEE MANAGEMENT PAGE
 # ------------------------------------

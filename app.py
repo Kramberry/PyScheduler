@@ -52,26 +52,8 @@ DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 # ------------------------------------
 def load_employees():
     if not os.path.exists(EMP_FILE):
-        # default list the first time
-        default_employees = [
-            "Nora",
-            "Viviana",
-            "Sonia",
-            "Carlet",
-            "Marisol",
-            "Patricia",
-            "Trinidad",
-            "Yessica",
-            "Marcia",
-            "Brandon",
-            "Matthew",
-            "Sue",
-            "Raishod",
-            "Levent",
-            "Carolina",
-        ]
-        save_employees(default_employees)
-        return default_employees
+        save_employees([])
+        return []
 
     with open(EMP_FILE, "r", encoding="utf-8") as f:
         return json.load(f)

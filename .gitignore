@@ -5,3 +5,5 @@ __pycache__/
 *.xlsx
 *.pdf
 last_schedule.json
+schedule_history.json
+*_backup.json

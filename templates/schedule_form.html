@@ -40,6 +40,40 @@
     .time-row { display: flex; gap: 6px; align-items: center; }
     .time-row select { width: 92px; }
     .hours-badge { font-variant-numeric: tabular-nums; font-size: 0.78rem; }
+
+    #week-tabs-bar { display: flex; align-items: flex-end; gap: 2px; overflow-x: auto; padding: 0 4px; }
+    .week-tab {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 10px 8px 14px;
+      font-size: 0.8rem; font-weight: 500; white-space: nowrap;
+      color: #64748b; background: #e2e8f0;
+      border-top-left-radius: 8px; border-top-right-radius: 8px;
+      border: 1px solid #cbd5e1; border-bottom: none;
+      cursor: pointer; flex-shrink: 0;
+    }
+    .dark .week-tab { color: #94a3b8; background: #1e293b; border-color: #334155; }
+    .week-tab:hover { background: #f1f5f9; }
+    .dark .week-tab:hover { background: #26344a; }
+    .week-tab.active {
+      color: #1e3a5f; background: #ffffff; border-color: #e2e8f0;
+      font-weight: 600; position: relative; top: 1px;
+    }
+    .dark .week-tab.active { color: #fff; background: #1e293b; border-color: #334155; }
+    .week-tab .tab-close {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px; border-radius: 9999px; font-size: 0.85rem; line-height: 1;
+      color: inherit; opacity: 0.6;
+    }
+    .week-tab .tab-close:hover { opacity: 1; background: #fecaca; color: #b91c1c; }
+    .week-tab-add {
+      flex-shrink: 0; width: 30px; height: 34px; margin-bottom: 1px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 600; color: #64748b;
+      border: 1px dashed #cbd5e1; border-radius: 8px;
+    }
+    .week-tab-add:hover { color: #2563eb; border-color: #2563eb; background: #eff6ff; }
+    .dark .week-tab-add { color: #94a3b8; border-color: #334155; }
+    .dark .week-tab-add:hover { color: #60a5fa; border-color: #60a5fa; background: #1e3a5f33; }
   </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 min-h-screen">
@@ -89,13 +123,15 @@
 
   <main class="max-w-screen-2xl mx-auto px-4 py-8">
 
-    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 mb-6 flex flex-wrap items-end gap-5">
+    <div id="week-tabs-bar" class="mb-0"></div>
+
+    <div class="bg-white dark:bg-slate-800 rounded-xl rounded-tl-none border border-slate-200 dark:border-slate-700 shadow-sm p-5 mb-6 flex flex-wrap items-end gap-5">
       <div>
         <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Week Starting</label>
         <input type="date" id="week_start_display" name="week_start_display"
                value="{{ saved.week_start if saved and saved.week_start else '' }}"
                class="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-               onchange="syncWeekStart(this.value); updateDateHeaders(this.value)"/>
+               onchange="renameActiveWeek(this.value)"/>
       </div>
       <div id="week-label" class="text-sm text-slate-500 dark:text-slate-400 pb-2"></div>
       <div class="ml-auto flex gap-3">
@@ -104,44 +140,46 @@
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
           </svg>
-          Copy Last Week
+          Copy Previous Week
         </button>
         <button type="button" onclick="clearAll()"
                 class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
           Clear All
         </button>
-        <button type="button" onclick="submitSchedule('print')"
+        <button type="button" onclick="printPreview()"
                 class="px-4 py-2 text-sm font-medium text-slate-700 bg-amber-400 rounded-lg hover:bg-amber-500 transition-colors flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
           </svg>
           Print Preview
         </button>
-        <button type="button" onclick="submitSchedule('xlsx')"
+        <button type="button" onclick="exportAllWeeks('xlsx')" title="Exports every open week tab into one workbook"
                 class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
           </svg>
           Export Excel
         </button>
-        <button type="button" onclick="submitSchedule('pdf')"
+        <button type="button" onclick="exportAllWeeks('pdf')" title="Exports every open week tab into one PDF"
                 class="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
           </svg>
           Export PDF
         </button>
+        <a href="/export-multi"
+           class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+           title="Export weeks saved in earlier sessions, not just the tabs open right now">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          From Archive
+        </a>
       </div>
     </div>
 
-    <form id="schedule-form" method="POST" action="/">
-      <input type="hidden" name="week_start" id="week_start_hidden"
-             value="{{ saved.week_start if saved and saved.week_start else '' }}"/>
-    </form>
-    <form id="pdf-form" method="POST" action="/export-pdf">
-      <input type="hidden" name="week_start" id="week_start_pdf"
-             value="{{ saved.week_start if saved and saved.week_start else '' }}"/>
-    </form>
+    <form id="multi-xlsx-form" method="POST" action="/export-multi-xlsx"></form>
+    <form id="multi-pdf-form" method="POST" action="/export-multi-pdf"></form>
     <form id="print-form" method="POST" action="/print-preview" target="_blank">
       <input type="hidden" name="week_start" id="week_start_print"
              value="{{ saved.week_start if saved and saved.week_start else '' }}"/>
@@ -188,12 +226,12 @@
                       <select class="start-input border border-slate-200 dark:border-slate-600 rounded px-1 py-1 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
                               data-emp="{{ emp }}" data-day="{{ day }}"
                               data-value="{% if saved and saved.schedule and emp in saved.schedule %}{{ saved.schedule[emp][day].start | to24h }}{% endif %}"
-                              onchange="recalcRow('{{ emp }}')"></select>
+                              onchange="recalcRow('{{ emp }}'); scheduleAutosave();"></select>
                       <span class="text-slate-400 dark:text-slate-500 text-xs">-</span>
                       <select class="end-input border border-slate-200 dark:border-slate-600 rounded px-1 py-1 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
                               data-emp="{{ emp }}" data-day="{{ day }}"
                               data-value="{% if saved and saved.schedule and emp in saved.schedule %}{{ saved.schedule[emp][day].end | to24h }}{% endif %}"
-                              onchange="recalcRow('{{ emp }}')"></select>
+                              onchange="recalcRow('{{ emp }}'); scheduleAutosave();"></select>
                     </div>
                     <div class="role-area flex flex-wrap gap-1 items-center" id="roles-{{ emp | replace(' ', '_') }}-{{ day }}">
                       {% if saved and saved.schedule and emp in saved.schedule %}
@@ -227,7 +265,7 @@
     </div>
 
     <p class="text-center text-xs text-slate-400 dark:text-slate-500 mt-5">
-      Press Enter after typing a role to add it · Check PTO to mark a full day off
+      Press Enter after typing a role to add it · Check PTO to mark a full day off · Use the + tab to add another week, then Export bundles every open week
     </p>
   </main>
 
@@ -283,20 +321,25 @@
     const EMPLOYEES = {{ employees | tojson }};
     const DAYS      = {{ days | tojson }};
     const SAVED     = {{ saved | tojson if saved else '{}' }};
+    const ROLES     = {{ roles | tojson if roles else '[]' }};
 
-    const knownRoles = new Set();
+    // Canonical role list from the server — the single source of truth for
+    // "known" roles, so typos don't get silently baked into future suggestions.
+    const knownRoles = new Set(ROLES);
     let activeInput  = null;
 
-    function buildKnownRoles() {
-      if (!SAVED || !SAVED.schedule) return;
-      Object.values(SAVED.schedule).forEach(empData => {
-        Object.values(empData).forEach(dayData => {
-          if (Array.isArray(dayData.role)) {
-            dayData.role.forEach(r => { if (r && r !== 'PTO') knownRoles.add(r); });
-          }
-        });
-      });
-    }
+    // --- Week tabs -----------------------------------------------------
+    // weekTabs: ordered list of week_start ("YYYY-MM-DD") strings, one per open tab.
+    // weekData: { week_start: { emp: { day: {role:[...], start:'HH:MM'(24h), end:'HH:MM'(24h)} } } }
+    // The grid's DOM is always a live view of weekData[activeWeek] — switching
+    // tabs syncs the outgoing tab's DOM state into weekData, then renders the
+    // incoming tab's stored state back into the same DOM (no page reload,
+    // one grid reused for every tab).
+    const WEEK_TABS_STORAGE_KEY = 'shiftdesk_week_tabs_v1';
+    let weekTabs = [];
+    let weekData = {};
+    let activeWeek = null;
+    let autosaveTimer = null;
 
     function buildTimeSelects() {
       const options = ['<option value="">--</option>'];
@@ -392,34 +435,343 @@
       e.preventDefault();
       const val = input.value.trim();
       if (!val) return;
-      addRolePill(input.dataset.emp, input.dataset.day, val);
-      input.value = '';
+      tryAddRole(input.dataset.emp, input.dataset.day, val, input);
+    }
+
+    // Only reaches the canonical role list on a deliberate confirm — typing
+    // + Enter for a brand-new name asks first, so a typo never gets baked in
+    // silently. Picking an existing role (autocomplete click, Copy Last Week)
+    // skips the prompt since it's already known.
+    function tryAddRole(emp, day, role, input) {
+      const isKnown = [...knownRoles].some(r => r.toLowerCase() === role.toLowerCase());
+      if (!isKnown) {
+        if (!confirm('"' + role + '" isn\'t an existing role yet. Add it as a new shift role?')) return;
+        knownRoles.add(role);
+        registerNewRole(role);
+      }
+      addRolePill(emp, day, role);
+      if (input) input.value = '';
+    }
+
+    function registerNewRole(role) {
+      const fd = new FormData();
+      fd.append('new_role', role);
+      fetch('/roles/add', { method: 'POST', body: fd }).catch(() => {});
     }
 
     function addRolePill(emp, day, role) {
       const area = document.getElementById('roles-' + empId(emp) + '-' + day);
       const input = area.querySelector('.role-input');
+      const existing = [...area.querySelectorAll('.role-pill')]
+        .some(p => p.dataset.role.toLowerCase() === role.toLowerCase());
+      if (existing) return;
       const pill = document.createElement('span');
       pill.className = 'role-pill';
       pill.dataset.role = role;
       pill.innerHTML = role + ' <button type="button" onclick="removeRole(this)" title="Remove">x</button>';
       area.insertBefore(pill, input);
-      knownRoles.add(role);
+      scheduleAutosave();
     }
 
-    function removeRole(btn) { btn.closest('.role-pill').remove(); }
+    function removeRole(btn) { btn.closest('.role-pill').remove(); scheduleAutosave(); }
 
     function togglePTO(checkbox) {
       const id = empId(checkbox.dataset.emp);
       const shiftDiv = document.getElementById('shift-' + id + '-' + checkbox.dataset.day);
       shiftDiv.style.display = checkbox.checked ? 'none' : '';
       recalcRow(checkbox.dataset.emp);
+      scheduleAutosave();
     }
 
     function syncWeekStart(val) {
-      document.getElementById('week_start_hidden').value = val;
-      document.getElementById('week_start_pdf').value   = val;
       document.getElementById('week_start_print').value = val;
+    }
+
+    // --- Week tab data model --------------------------------------------
+
+    function scheduleAutosave() {
+      clearTimeout(autosaveTimer);
+      autosaveTimer = setTimeout(() => {
+        syncActiveWeekFromDOM();
+        persistTabs();
+      }, 400);
+    }
+
+    function addDays(dateStr, n) {
+      const d = new Date(dateStr + 'T00:00:00');
+      d.setDate(d.getDate() + n);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function shortWeekLabel(weekStart) {
+      if (!weekStart) return '(no date)';
+      const d = new Date(weekStart + 'T00:00:00');
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    // Converts the server's saved-schedule shape (12h "start"/"end" strings)
+    // into this page's internal shape (24h, matching <select> values).
+    function parseServerScheduleToWeekData(schedule) {
+      const data = {};
+      if (!schedule) return data;
+      Object.keys(schedule).forEach(emp => {
+        data[emp] = {};
+        DAYS.forEach(day => {
+          const cell = (schedule[emp] && schedule[emp][day]) || { role: [], start: '', end: '' };
+          data[emp][day] = {
+            role: Array.isArray(cell.role) ? cell.role : [],
+            start: to24h(cell.start || ''),
+            end: to24h(cell.end || '')
+          };
+        });
+      });
+      return data;
+    }
+
+    function weekHasData(weekStart) {
+      const data = weekData[weekStart];
+      if (!data) return false;
+      return Object.values(data).some(days =>
+        Object.values(days).some(cell => (cell.role && cell.role.length) || cell.start || cell.end)
+      );
+    }
+
+    // Reads the live grid DOM into weekData[activeWeek]. The DOM is always
+    // treated as the source of truth for whichever week is currently active.
+    function syncActiveWeekFromDOM() {
+      if (!activeWeek) return;
+      const data = {};
+      EMPLOYEES.forEach(emp => {
+        data[emp] = {};
+        const id = empId(emp);
+        DAYS.forEach(day => {
+          const ptoBox  = document.querySelector('.pto-checkbox[data-emp="' + emp + '"][data-day="' + day + '"]');
+          const startEl = document.querySelector('.start-input[data-emp="' + emp + '"][data-day="' + day + '"]');
+          const endEl   = document.querySelector('.end-input[data-emp="' + emp + '"][data-day="' + day + '"]');
+          const roleArea = document.getElementById('roles-' + id + '-' + day);
+          const pto = !!(ptoBox && ptoBox.checked);
+          if (pto) {
+            data[emp][day] = { role: ['PTO'], start: '', end: '' };
+          } else {
+            const pills = roleArea ? [...roleArea.querySelectorAll('.role-pill')].map(p => p.dataset.role) : [];
+            data[emp][day] = {
+              role: pills,
+              start: startEl ? startEl.value : '',
+              end: endEl ? endEl.value : ''
+            };
+          }
+        });
+      });
+      weekData[activeWeek] = data;
+    }
+
+    // Renders weekData[activeWeek] into the live grid DOM (the reverse of
+    // syncActiveWeekFromDOM), then recalcs every hours badge.
+    function renderActiveWeekIntoDOM() {
+      const data = weekData[activeWeek] || {};
+      EMPLOYEES.forEach(emp => {
+        const id = empId(emp);
+        const empData = data[emp] || {};
+        DAYS.forEach(day => {
+          const cell = empData[day] || { role: [], start: '', end: '' };
+          const isPto = cell.role.includes('PTO');
+          const ptoBox   = document.querySelector('.pto-checkbox[data-emp="' + emp + '"][data-day="' + day + '"]');
+          const shiftDiv = document.getElementById('shift-' + id + '-' + day);
+          const startEl  = document.querySelector('.start-input[data-emp="' + emp + '"][data-day="' + day + '"]');
+          const endEl    = document.querySelector('.end-input[data-emp="' + emp + '"][data-day="' + day + '"]');
+          const roleArea = document.getElementById('roles-' + id + '-' + day);
+
+          if (ptoBox) ptoBox.checked = isPto;
+          if (shiftDiv) shiftDiv.style.display = isPto ? 'none' : '';
+          if (startEl) startEl.value = isPto ? '' : (cell.start || '');
+          if (endEl) endEl.value = isPto ? '' : (cell.end || '');
+          if (roleArea) {
+            roleArea.querySelectorAll('.role-pill').forEach(p => p.remove());
+            if (!isPto) cell.role.filter(r => r && r !== 'PTO').forEach(r => addRolePill(emp, day, r));
+          }
+        });
+      });
+      EMPLOYEES.forEach(emp => recalcRow(emp));
+
+      document.getElementById('week_start_display').value = activeWeek || '';
+      syncWeekStart(activeWeek || '');
+      updateDateHeaders(activeWeek || '');
+    }
+
+    function persistTabs() {
+      try {
+        localStorage.setItem(WEEK_TABS_STORAGE_KEY, JSON.stringify({
+          tabs: weekTabs, data: weekData, active: activeWeek
+        }));
+      } catch (e) { /* storage full/unavailable — non-fatal, just skip persistence */ }
+    }
+
+    function loadTabsFromStorage() {
+      try {
+        const raw = localStorage.getItem(WEEK_TABS_STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.tabs) || parsed.tabs.length === 0) return null;
+        return parsed;
+      } catch (e) { return null; }
+    }
+
+    function renderTabBar() {
+      const bar = document.getElementById('week-tabs-bar');
+      bar.innerHTML = '';
+      weekTabs.forEach(w => {
+        const tab = document.createElement('div');
+        tab.className = 'week-tab' + (w === activeWeek ? ' active' : '');
+        tab.title = w;
+        tab.onclick = () => switchToWeek(w);
+
+        const label = document.createElement('span');
+        label.textContent = shortWeekLabel(w);
+        tab.appendChild(label);
+
+        const close = document.createElement('span');
+        close.className = 'tab-close';
+        close.title = 'Close this week tab';
+        close.textContent = '×';
+        close.onclick = (e) => { e.stopPropagation(); closeWeekTab(w); };
+        tab.appendChild(close);
+
+        bar.appendChild(tab);
+      });
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'week-tab-add';
+      addBtn.title = 'Add the next week as a new tab';
+      addBtn.textContent = '+';
+      addBtn.onclick = addWeekTab;
+      bar.appendChild(addBtn);
+    }
+
+    function switchToWeek(weekStart) {
+      if (weekStart === activeWeek) return;
+      syncActiveWeekFromDOM();
+      activeWeek = weekStart;
+      renderActiveWeekIntoDOM();
+      renderTabBar();
+      persistTabs();
+    }
+
+    function addWeekTab() {
+      syncActiveWeekFromDOM();
+      const base = weekTabs.length ? weekTabs[weekTabs.length - 1] : (activeWeek || new Date().toISOString().slice(0, 10));
+      let next = addDays(base, 7);
+      while (weekTabs.includes(next)) next = addDays(next, 7);
+      weekData[next] = {};
+      weekTabs.push(next);
+      weekTabs.sort();
+      activeWeek = next;
+      renderActiveWeekIntoDOM();
+      renderTabBar();
+      persistTabs();
+    }
+
+    function closeWeekTab(weekStart) {
+      if (weekTabs.length <= 1) {
+        alert('At least one week tab has to stay open.');
+        return;
+      }
+      if (weekStart === activeWeek) syncActiveWeekFromDOM();
+      if (weekHasData(weekStart) &&
+          !confirm('Close the ' + shortWeekLabel(weekStart) + ' week tab? Anything on it that you haven\'t exported will be lost.')) {
+        return;
+      }
+      const idx = weekTabs.indexOf(weekStart);
+      weekTabs.splice(idx, 1);
+      delete weekData[weekStart];
+      if (activeWeek === weekStart) {
+        activeWeek = weekTabs[Math.max(0, idx - 1)];
+        renderActiveWeekIntoDOM();
+      }
+      renderTabBar();
+      persistTabs();
+    }
+
+    // Editing the "Week Starting" date on the active tab renames that tab
+    // (moves its data to the new date key) rather than creating a new tab.
+    function renameActiveWeek(newDate) {
+      if (!newDate || newDate === activeWeek) return;
+      syncActiveWeekFromDOM();
+      if (weekTabs.includes(newDate)) {
+        if (confirm('A tab for ' + shortWeekLabel(newDate) + ' is already open. Switch to it instead?')) {
+          switchToWeek(newDate);
+        } else {
+          document.getElementById('week_start_display').value = activeWeek;
+        }
+        return;
+      }
+      const idx = weekTabs.indexOf(activeWeek);
+      weekData[newDate] = weekData[activeWeek];
+      delete weekData[activeWeek];
+      weekTabs[idx] = newDate;
+      weekTabs.sort();
+      activeWeek = newDate;
+      syncWeekStart(activeWeek);
+      updateDateHeaders(activeWeek);
+      renderTabBar();
+      persistTabs();
+    }
+
+    function initWeekTabs() {
+      const stored = loadTabsFromStorage();
+      if (stored) {
+        weekTabs = stored.tabs;
+        weekData = stored.data || {};
+        activeWeek = weekTabs.includes(stored.active) ? stored.active : weekTabs[0];
+      } else {
+        const seedWeek = (SAVED && SAVED.week_start) || document.getElementById('week_start_display').value || new Date().toISOString().slice(0, 10);
+        weekTabs = [seedWeek];
+        weekData = { [seedWeek]: parseServerScheduleToWeekData(SAVED && SAVED.schedule) };
+        activeWeek = seedWeek;
+      }
+      renderTabBar();
+      renderActiveWeekIntoDOM();
+      persistTabs();
+    }
+
+    // Builds the JSON payload for exportAllWeeks(): every open tab, with
+    // start/end converted back to the 12h strings the server expects.
+    function collectWeeksPayload() {
+      syncActiveWeekFromDOM();
+      const payload = {};
+      weekTabs.forEach(w => {
+        const data = weekData[w] || {};
+        const weekOut = {};
+        EMPLOYEES.forEach(emp => {
+          weekOut[emp] = {};
+          const empData = data[emp] || {};
+          DAYS.forEach(day => {
+            const cell = empData[day] || { role: [], start: '', end: '' };
+            weekOut[emp][day] = {
+              role: cell.role || [],
+              start: to12h(cell.start || ''),
+              end: to12h(cell.end || '')
+            };
+          });
+        });
+        payload[w] = weekOut;
+      });
+      return payload;
+    }
+
+    function exportAllWeeks(type) {
+      const formEl = type === 'pdf'
+        ? document.getElementById('multi-pdf-form')
+        : document.getElementById('multi-xlsx-form');
+      const payload = collectWeeksPayload();
+      let hidden = formEl.querySelector('input[name="weeks_json"]');
+      if (!hidden) {
+        hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'weeks_json';
+        formEl.appendChild(hidden);
+      }
+      hidden.value = JSON.stringify(payload);
+      formEl.submit();
     }
 
     function updateDateHeaders(val) {
@@ -439,49 +791,43 @@
       if (label) label.textContent = d.toLocaleDateString('en-US', { month:'long', day:'numeric' }) + ' - ' + endDate.toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
     }
 
+    // Prefers the tab immediately before this one in the strip (the natural
+    // "previous week" when building out several weeks in a row); falls back
+    // to the server's last saved week if this is the only/first tab open.
     function copyLastWeek() {
-      if (!SAVED || !SAVED.schedule || Object.keys(SAVED.schedule).length === 0) {
-        alert('No previous schedule found. Export a schedule first to save one.');
+      const idx = weekTabs.indexOf(activeWeek);
+      const prevWeek = idx > 0 ? weekTabs[idx - 1] : null;
+      let source, label;
+      if (prevWeek) {
+        source = weekData[prevWeek];
+        label = shortWeekLabel(prevWeek) + ' week';
+      } else if (SAVED && SAVED.schedule && Object.keys(SAVED.schedule).length > 0) {
+        source = parseServerScheduleToWeekData(SAVED.schedule);
+        label = 'last saved week';
+      } else {
+        alert('No previous week found to copy from.');
         return;
       }
-      if (!confirm('Copy last week\'s shifts into the current schedule? This will overwrite any unsaved changes.')) return;
+      if (!confirm('Copy shifts from the ' + label + ' into ' + shortWeekLabel(activeWeek) + '? This overwrites unsaved changes on this tab.')) return;
 
-      document.querySelectorAll('.start-input, .end-input').forEach(i => i.value = '');
-      document.querySelectorAll('.pto-checkbox').forEach(c => { c.checked = false; });
-      document.querySelectorAll('.shift-wrapper').forEach(d => d.style.display = '');
-      document.querySelectorAll('.role-pill').forEach(p => p.remove());
-
-      EMPLOYEES.forEach(emp => {
-        const empData = SAVED.schedule[emp];
-        if (!empData) return;
-        DAYS.forEach(day => {
-          const cell = empData[day];
-          if (!cell) return;
-          const roles = Array.isArray(cell.role) ? cell.role : [];
-          if (roles.includes('PTO')) {
-            const ptoBox = document.querySelector(`.pto-checkbox[data-emp="${emp}"][data-day="${day}"]`);
-            if (ptoBox) { ptoBox.checked = true; togglePTO(ptoBox); }
-          } else {
-            const startEl = document.querySelector(`.start-input[data-emp="${emp}"][data-day="${day}"]`);
-            const endEl   = document.querySelector(`.end-input[data-emp="${emp}"][data-day="${day}"]`);
-            if (startEl) startEl.value = to24h(cell.start);
-            if (endEl)   endEl.value   = to24h(cell.end);
-            roles.filter(r => r).forEach(r => addRolePill(emp, day, r));
-          }
-        });
-        recalcRow(emp);
-      });
+      weekData[activeWeek] = JSON.parse(JSON.stringify(source));
+      renderActiveWeekIntoDOM();
+      persistTabs();
     }
 
     function clearAll() {
-      if (!confirm('Clear all shifts for this week?')) return;
+      if (!confirm('Clear all shifts for the ' + shortWeekLabel(activeWeek) + ' week?')) return;
       document.querySelectorAll('.start-input, .end-input').forEach(i => i.value = '');
       document.querySelectorAll('.pto-checkbox').forEach(c => { c.checked = false; });
       document.querySelectorAll('.shift-wrapper').forEach(d => d.style.display = '');
       document.querySelectorAll('.role-pill').forEach(p => p.remove());
       EMPLOYEES.forEach(emp => recalcRow(emp));
+      syncActiveWeekFromDOM();
+      persistTabs();
     }
 
+    // Only Print Preview still posts a plain HTML form — it's scoped to
+    // whichever tab is currently active, not the whole open set.
     function collectAndInject(formEl) {
       formEl.querySelectorAll('.injected').forEach(el => el.remove());
       EMPLOYEES.forEach(emp => {
@@ -509,10 +855,8 @@
       });
     }
 
-    function submitSchedule(type) {
-      const formEl = type === 'pdf'   ? document.getElementById('pdf-form')
-                   : type === 'print' ? document.getElementById('print-form')
-                                      : document.getElementById('schedule-form');
+    function printPreview() {
+      const formEl = document.getElementById('print-form');
       collectAndInject(formEl);
       formEl.submit();
     }
@@ -613,17 +957,16 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      const weekInput = document.getElementById('week_start_display');
-      if (weekInput.value) updateDateHeaders(weekInput.value);
-      EMPLOYEES.forEach(emp => recalcRow(emp));
-
       const isDark = document.documentElement.classList.contains('dark');
       document.getElementById('icon-sun').classList.toggle('hidden', !isDark);
       document.getElementById('icon-moon').classList.toggle('hidden', isDark);
 
       applyBackground();
-      buildKnownRoles();
       buildTimeSelects();
+      // Tabs (restored from localStorage, or seeded from the server-rendered
+      // week) own populating the grid and recalculating totals — this must
+      // run after buildTimeSelects() so the <select> option lists exist first.
+      initWeekTabs();
 
       document.addEventListener('focusin', e => {
         if (e.target.classList.contains('role-input')) showRoleSuggestions(e.target);
@@ -646,6 +989,10 @@
             !e.target.classList.contains('role-input')) hideDropdown();
       });
       window.addEventListener('scroll', hideDropdown, true);
+      window.addEventListener('beforeunload', () => {
+        syncActiveWeekFromDOM();
+        persistTabs();
+      });
     });
   </script>
 </body>

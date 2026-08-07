@@ -10,15 +10,15 @@ Built with Flask and Tailwind CSS. Designed to be simple enough for anyone to us
 
 ## Features
 
-- 📋 Build weekly schedules for your entire team in one view
-- 🕐 Native time pickers — no more typing "9:00 AM" by hand
-- 🏷️ Add multiple roles per shift as tags (press Enter to add)
-- 🌴 Mark employees as PTO with one checkbox
-- 📊 Auto-calculates total hours per employee
-- 📅 Date headers update automatically when you pick a week
-- 💾 Remembers last week's schedule when you reopen the app
-- 📤 Export to Excel (.xlsx) or PDF with one click
-- 👥 Add or remove team members from a dedicated management page
+-  Build weekly schedules for your entire team in one view
+-  Native time pickers — no more typing "9:00 AM" by hand
+-  Add multiple roles per shift as tags (press Enter to add)
+-  Mark employees as PTO with one checkbox
+-  Auto-calculates total hours per employee
+-  Date headers update automatically when you pick a week
+-  Remembers last week's schedule when you reopen the app
+-  Export to Excel (.xlsx) or PDF with one click
+-  Add or remove team members from a dedicated management page
 
 ---
 

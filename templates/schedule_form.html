@@ -102,11 +102,16 @@
     }
 
     /* Windows Chrome/Edge draw small up/down (or left/right) step buttons
-       at the ends of scrollbars by default; hide just those, keep the
-       scrollbar itself. */
-    ::-webkit-scrollbar-button {
-      display: none;
-    }
+       at the ends of scrollbars by default. Hiding just ::-webkit-scrollbar-button
+       on its own is unreliable — Chrome only fully swaps in custom scrollbar
+       rendering (dropping the OS default, buttons included) once the whole
+       scrollbar is styled, so the track/thumb are defined here too. */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    .dark ::-webkit-scrollbar-thumb { background: #525252; }
+    ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+    ::-webkit-scrollbar-corner { background: transparent; }
   </style>
 </head>
 <body class="bg-slate-50 dark:bg-neutral-900 min-h-screen">

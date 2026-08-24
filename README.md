@@ -27,7 +27,7 @@ Built with Flask and Tailwind CSS. Designed to be simple enough for anyone to us
 ### Option A — Download the App (Windows, no setup needed)
 
 1. Go to the [Releases](../../releases) page
-2. Download `SchedulePlanner.exe`
+2. Download `app.exe`
 3. Double-click to run — it opens in your browser automatically
 
 No Python, no installation, no command line needed.
@@ -109,7 +109,7 @@ pip install pyinstaller
 pyinstaller app.spec
 ```
 
-The output will be in the `dist/` folder as `SchedulePlanner.exe`.
+The output will be in the `dist/` folder as `app.exe`.
 
 ---
 

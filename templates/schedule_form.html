@@ -75,20 +75,22 @@
     .dark .week-tab-add { color: #a3a3a3; border-color: #404040; }
     .dark .week-tab-add:hover { color: #60a5fa; border-color: #60a5fa; background: #33333380; }
 
-    /* Decorative side banners — shown flanking the main content on wide
-       screens only; there's no room for them once the page is narrow
-       enough that content would butt up against them. */
+    /* Decorative side banners — shown flanking the main content, but only
+       as wide as the actual empty margin allows. The main content tops
+       out at 1536px (max-w-screen-2xl); (100vw - 1600px)/2 is the margin
+       beyond that plus a 32px breathing gap, so the banner can never grow
+       wide enough to overlap the content itself — at 1600px or narrower
+       it's 0 (effectively hidden), and it caps at 200px on very wide
+       screens instead of growing without bound. */
     .bg-side-banner {
-      position: fixed; top: 0; bottom: 0; width: 220px;
+      position: fixed; top: 0; bottom: 0;
+      width: clamp(0px, calc((100vw - 1600px) / 2), 200px);
       background-size: cover; background-position: center; background-repeat: no-repeat;
       z-index: 0; pointer-events: none; opacity: 0;
-      transition: opacity 0.3s, filter 0.3s;
+      transition: opacity 0.3s, filter 0.3s, width 0.2s;
     }
     .bg-side-banner-left { left: 0; }
     .bg-side-banner-right { right: 0; }
-    @media (max-width: 1600px) {
-      .bg-side-banner { display: none; }
-    }
 
     /* Chrome/Edge draw a spin-button (up/down stepper) on date inputs;
        it's not useful here and reads as a stray UI artifact. */
@@ -97,6 +99,13 @@
       -webkit-appearance: none;
       display: none;
       margin: 0;
+    }
+
+    /* Windows Chrome/Edge draw small up/down (or left/right) step buttons
+       at the ends of scrollbars by default; hide just those, keep the
+       scrollbar itself. */
+    ::-webkit-scrollbar-button {
+      display: none;
     }
   </style>
 </head>

@@ -22,7 +22,7 @@
   <style>
     body { font-family: 'Inter', sans-serif; }
     .emp-row:hover { background-color: #f8fafc; }
-    .dark .emp-row:hover { background-color: #1e293b; }
+    .dark .emp-row:hover { background-color: #262626; }
     .role-pill {
       display: inline-flex; align-items: center; gap: 4px;
       background: #e0f2fe; color: #0369a1;
@@ -51,14 +51,14 @@
       border: 1px solid #cbd5e1; border-bottom: none;
       cursor: pointer; flex-shrink: 0;
     }
-    .dark .week-tab { color: #94a3b8; background: #1e293b; border-color: #334155; }
+    .dark .week-tab { color: #a3a3a3; background: #262626; border-color: #404040; }
     .week-tab:hover { background: #f1f5f9; }
-    .dark .week-tab:hover { background: #26344a; }
+    .dark .week-tab:hover { background: #333333; }
     .week-tab.active {
       color: #1e3a5f; background: #ffffff; border-color: #e2e8f0;
       font-weight: 600; position: relative; top: 1px;
     }
-    .dark .week-tab.active { color: #fff; background: #1e293b; border-color: #334155; }
+    .dark .week-tab.active { color: #fff; background: #262626; border-color: #404040; }
     .week-tab .tab-close {
       display: inline-flex; align-items: center; justify-content: center;
       width: 16px; height: 16px; border-radius: 9999px; font-size: 0.85rem; line-height: 1;
@@ -72,8 +72,8 @@
       border: 1px dashed #cbd5e1; border-radius: 8px;
     }
     .week-tab-add:hover { color: #2563eb; border-color: #2563eb; background: #eff6ff; }
-    .dark .week-tab-add { color: #94a3b8; border-color: #334155; }
-    .dark .week-tab-add:hover { color: #60a5fa; border-color: #60a5fa; background: #1e3a5f33; }
+    .dark .week-tab-add { color: #a3a3a3; border-color: #404040; }
+    .dark .week-tab-add:hover { color: #60a5fa; border-color: #60a5fa; background: #33333380; }
 
     /* Decorative side banners — shown flanking the main content on wide
        screens only; there's no room for them once the page is narrow
@@ -89,14 +89,23 @@
     @media (max-width: 1600px) {
       .bg-side-banner { display: none; }
     }
+
+    /* Chrome/Edge draw a spin-button (up/down stepper) on date inputs;
+       it's not useful here and reads as a stray UI artifact. */
+    input[type="date"]::-webkit-inner-spin-button,
+    input[type="date"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      display: none;
+      margin: 0;
+    }
   </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-900 min-h-screen">
+<body class="bg-slate-50 dark:bg-neutral-900 min-h-screen">
 
   <div id="bg-layer-left" class="bg-side-banner bg-side-banner-left"></div>
   <div id="bg-layer-right" class="bg-side-banner bg-side-banner-right"></div>
 
-  <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+  <header class="bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
     <div class="flex items-center gap-3">
       <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
         <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -105,12 +114,12 @@
       </div>
       <div>
         <h1 class="text-slate-800 dark:text-white font-semibold text-base leading-tight">ShiftDesk</h1>
-        <p class="text-slate-400 dark:text-slate-500 text-xs leading-tight">Weekly Scheduler</p>
+        <p class="text-slate-400 dark:text-neutral-500 text-xs leading-tight">Weekly Scheduler</p>
       </div>
     </div>
     <div class="flex items-center gap-2">
       <button onclick="openSettings()"
-              class="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              class="p-2 rounded-lg text-slate-500 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors"
               title="Side banner settings">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
@@ -118,7 +127,7 @@
         </svg>
       </button>
       <button id="dark-toggle" onclick="toggleDark()"
-              class="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              class="p-2 rounded-lg text-slate-500 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors"
               title="Toggle dark mode">
         <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
@@ -128,7 +137,7 @@
         </svg>
       </button>
       <a href="/employees"
-         class="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+         class="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-700">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
         </svg>
@@ -141,26 +150,22 @@
 
     <div id="week-tabs-bar" class="mb-0"></div>
 
-    <div class="bg-white dark:bg-slate-800 rounded-xl rounded-tl-none border border-slate-200 dark:border-slate-700 shadow-sm p-5 mb-6 flex flex-wrap items-end gap-5">
+    <div class="bg-white dark:bg-neutral-800 rounded-xl rounded-tl-none border border-slate-200 dark:border-neutral-700 shadow-sm p-5 mb-6 flex flex-wrap items-end gap-5">
       <div>
-        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Week Starting</label>
+        <label class="block text-xs font-semibold text-slate-500 dark:text-neutral-400 uppercase tracking-wide mb-1">Week Starting</label>
         <input type="date" id="week_start_display" name="week_start_display"
                value="{{ saved.week_start if saved and saved.week_start else '' }}"
-               class="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+               class="border border-slate-300 dark:border-neutral-600 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-neutral-200 bg-white dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                onchange="renameActiveWeek(this.value)"/>
       </div>
-      <div id="week-label" class="text-sm text-slate-500 dark:text-slate-400 pb-2"></div>
+      <div id="week-label" class="text-sm text-slate-500 dark:text-neutral-400 pb-2"></div>
       <div class="ml-auto flex gap-3">
         <button type="button" onclick="copyLastWeek()"
-                class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2">
+                class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 border border-slate-300 dark:border-neutral-600 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
           </svg>
           Copy Previous Week
-        </button>
-        <button type="button" onclick="clearAll()"
-                class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-          Clear All
         </button>
         <button type="button" onclick="printPreview()"
                 class="px-4 py-2 text-sm font-medium text-slate-700 bg-amber-400 rounded-lg hover:bg-amber-500 transition-colors flex items-center gap-2">
@@ -169,28 +174,63 @@
           </svg>
           Print Preview
         </button>
-        <button type="button" onclick="exportAllWeeks('xlsx')" title="Exports every open week tab into one workbook"
-                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-          </svg>
-          Export Excel
-        </button>
-        <button type="button" onclick="exportAllWeeks('pdf')" title="Exports every open week tab into one PDF"
-                class="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-          </svg>
-          Export PDF
-        </button>
-        <a href="/export-multi"
-           class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
-           title="Export weeks saved in earlier sessions, not just the tabs open right now">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-          </svg>
-          From Archive
-        </a>
+
+        <div class="relative">
+          <button type="button" onclick="toggleMenu('export-menu', event)"
+                  class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Export
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div id="export-menu"
+               class="dropdown-menu hidden absolute right-0 top-full mt-2 z-40 min-w-[190px] bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl shadow-lg p-1.5">
+            <button type="button" onclick="exportAllWeeks('xlsx'); closeMenus();"
+                    title="Exports every open week tab into one workbook"
+                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700 rounded-lg transition-colors text-left">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              Export Excel
+            </button>
+            <button type="button" onclick="exportAllWeeks('pdf'); closeMenus();"
+                    title="Exports every open week tab into one PDF"
+                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700 rounded-lg transition-colors text-left">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+              </svg>
+              Export PDF
+            </button>
+          </div>
+        </div>
+
+        <div class="relative">
+          <button type="button" onclick="toggleMenu('options-menu', event)"
+                  class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 border border-slate-300 dark:border-neutral-600 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2">
+            Options
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div id="options-menu"
+               class="dropdown-menu hidden absolute right-0 top-full mt-2 z-40 min-w-[190px] bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl shadow-lg p-1.5">
+            <button type="button" onclick="clearAll(); closeMenus();"
+                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700 rounded-lg transition-colors text-left">
+              Clear All
+            </button>
+            <a href="/export-multi"
+               title="Export weeks saved in earlier sessions, not just the tabs open right now"
+               class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700 rounded-lg transition-colors text-left">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              From Archive
+            </a>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -201,11 +241,11 @@
              value="{{ saved.week_start if saved and saved.week_start else '' }}"/>
     </form>
 
-    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div class="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 shadow-sm">
       <div class="table-scroll">
         <table class="w-full border-collapse text-sm">
           <thead class="sticky-header">
-            <tr class="bg-slate-800 dark:bg-slate-900 text-white">
+            <tr class="bg-slate-800 dark:bg-neutral-900 text-white">
               <th class="text-left px-5 py-3.5 font-semibold text-xs uppercase tracking-wider rounded-tl-xl w-36">Team Member</th>
               {% for day in days %}
               <th class="day-cell px-4 py-3.5 font-semibold text-xs uppercase tracking-wider text-center" id="header-{{ day }}">{{ day }}</th>
@@ -213,10 +253,10 @@
               <th class="px-4 py-3.5 font-semibold text-xs uppercase tracking-wider text-center rounded-tr-xl w-24">Hours</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+          <tbody class="divide-y divide-slate-100 dark:divide-neutral-700">
             {% for emp in employees %}
             <tr class="emp-row" id="row-{{ emp | replace(' ', '_') }}">
-              <td class="px-5 py-3 font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap align-top">
+              <td class="px-5 py-3 font-medium text-slate-700 dark:text-neutral-200 whitespace-nowrap align-top">
                 <div class="flex items-center gap-2">
                   <div class="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-bold flex-shrink-0">
                     {{ emp[0] }}
@@ -225,7 +265,7 @@
                 </div>
               </td>
               {% for day in days %}
-              <td class="day-cell px-3 py-2 align-top border-l border-slate-100 dark:border-slate-700">
+              <td class="day-cell px-3 py-2 align-top border-l border-slate-100 dark:border-neutral-700">
                 <div class="flex flex-col gap-1.5" id="cell-{{ emp | replace(' ', '_') }}-{{ day }}">
                   <label class="flex items-center gap-1.5 cursor-pointer">
                     <input type="checkbox"
@@ -233,18 +273,18 @@
                            data-emp="{{ emp }}" data-day="{{ day }}"
                            {% if saved and saved.schedule and emp in saved.schedule and saved.schedule[emp][day].role and 'PTO' in saved.schedule[emp][day].role %}checked{% endif %}
                            onchange="togglePTO(this)"/>
-                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">PTO</span>
+                    <span class="text-xs text-slate-500 dark:text-neutral-400 font-medium">PTO</span>
                   </label>
                   <div class="shift-wrapper flex flex-col gap-1.5"
                        id="shift-{{ emp | replace(' ', '_') }}-{{ day }}"
                        {% if saved and saved.schedule and emp in saved.schedule and saved.schedule[emp][day].role and 'PTO' in saved.schedule[emp][day].role %}style="display:none"{% endif %}>
                     <div class="time-row">
-                      <select class="start-input border border-slate-200 dark:border-slate-600 rounded px-1 py-1 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      <select class="start-input border border-slate-200 dark:border-neutral-600 rounded px-1 py-1 text-xs text-slate-700 dark:text-neutral-200 bg-white dark:bg-neutral-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
                               data-emp="{{ emp }}" data-day="{{ day }}"
                               data-value="{% if saved and saved.schedule and emp in saved.schedule %}{{ saved.schedule[emp][day].start | to24h }}{% endif %}"
                               onchange="recalcRow('{{ emp }}'); scheduleAutosave();"></select>
-                      <span class="text-slate-400 dark:text-slate-500 text-xs">-</span>
-                      <select class="end-input border border-slate-200 dark:border-slate-600 rounded px-1 py-1 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      <span class="text-slate-400 dark:text-neutral-500 text-xs">-</span>
+                      <select class="end-input border border-slate-200 dark:border-neutral-600 rounded px-1 py-1 text-xs text-slate-700 dark:text-neutral-200 bg-white dark:bg-neutral-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
                               data-emp="{{ emp }}" data-day="{{ day }}"
                               data-value="{% if saved and saved.schedule and emp in saved.schedule %}{{ saved.schedule[emp][day].end | to24h }}{% endif %}"
                               onchange="recalcRow('{{ emp }}'); scheduleAutosave();"></select>
@@ -261,7 +301,7 @@
                         {% endfor %}
                       {% endif %}
                       <input type="text" placeholder="+ Role"
-                             class="role-input text-xs border-0 outline-none bg-transparent text-slate-500 dark:text-slate-400 placeholder-slate-300 dark:placeholder-slate-600 w-16 min-w-0"
+                             class="role-input text-xs border-0 outline-none bg-transparent text-slate-500 dark:text-neutral-400 placeholder-slate-300 dark:placeholder-neutral-600 w-16 min-w-0"
                              data-emp="{{ emp }}" data-day="{{ day }}"
                              onkeydown="handleRoleInput(event, this)"/>
                     </div>
@@ -270,15 +310,15 @@
               </td>
               {% endfor %}
               <td class="px-4 py-3 text-center align-top">
-                <span class="hours-badge font-semibold text-slate-700 dark:text-slate-200" id="hours-{{ emp | replace(' ', '_') }}">-</span>
-                <span class="text-xs text-slate-400 dark:text-slate-500"> hrs</span>
+                <span class="hours-badge font-semibold text-slate-700 dark:text-neutral-200" id="hours-{{ emp | replace(' ', '_') }}">-</span>
+                <span class="text-xs text-slate-400 dark:text-neutral-500"> hrs</span>
               </td>
             </tr>
             {% else %}
             <tr>
               <td colspan="{{ days | length + 2 }}" class="px-5 py-12 text-center">
-                <p class="text-sm text-slate-400 dark:text-slate-500">No team members yet.</p>
-                <p class="text-xs text-slate-400 dark:text-slate-600 mt-1">
+                <p class="text-sm text-slate-400 dark:text-neutral-500">No team members yet.</p>
+                <p class="text-xs text-slate-400 dark:text-neutral-600 mt-1">
                   <a href="/employees" class="text-blue-600 dark:text-blue-400 hover:underline">Add your team</a> to start building a schedule.
                 </p>
               </td>
@@ -289,29 +329,29 @@
       </div>
     </div>
 
-    <p class="text-center text-xs text-slate-400 dark:text-slate-500 mt-5">
+    <p class="text-center text-xs text-slate-400 dark:text-neutral-500 mt-5">
       Press Enter after typing a role to add it · Check PTO to mark a full day off · Use the + tab to add another week, then Export bundles every open week
     </p>
   </main>
 
   <div id="settings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/40 dark:bg-black/60" onclick="closeSettings()"></div>
-    <div class="relative bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl p-6 w-full max-w-sm">
+    <div class="relative bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 shadow-xl p-6 w-full max-w-sm">
       <div class="flex items-center justify-between mb-1">
         <h2 class="text-base font-semibold text-slate-800 dark:text-white">Side Banners</h2>
         <button onclick="closeSettings()"
-                class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
       </div>
-      <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">Shown flanking the page on wide screens only — hidden once the window is too narrow to fit them.</p>
+      <p class="text-xs text-slate-400 dark:text-neutral-500 mb-4">Shown flanking the page on wide screens only — hidden once the window is too narrow to fit them.</p>
       <div id="bg-preview"
-           class="w-full h-28 rounded-lg border border-slate-200 dark:border-slate-700 mb-4 bg-cover bg-center flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-900">
-        <span id="bg-preview-label" class="text-sm text-slate-400 dark:text-slate-500">No image set</span>
+           class="w-full h-28 rounded-lg border border-slate-200 dark:border-neutral-700 mb-4 bg-cover bg-center flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-neutral-900">
+        <span id="bg-preview-label" class="text-sm text-slate-400 dark:text-neutral-500">No image set</span>
       </div>
-      <label class="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-colors mb-4">
+      <label class="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-neutral-300 border border-dashed border-slate-300 dark:border-neutral-600 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-700 cursor-pointer transition-colors mb-4">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
         </svg>
@@ -319,14 +359,14 @@
         <input type="file" id="bg-file-input" accept="image/*" onchange="handleBgUpload(this)" class="hidden"/>
       </label>
       <div class="mb-4">
-        <div class="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+        <div class="flex justify-between text-xs font-medium text-slate-600 dark:text-neutral-400 mb-1.5">
           <span>Opacity</span><span id="opacity-val">25%</span>
         </div>
         <input type="range" id="bg-opacity" min="0" max="100" value="25"
                oninput="updateBgOpacity(this.value)" class="w-full accent-blue-600"/>
       </div>
       <div class="mb-5">
-        <div class="flex justify-between text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+        <div class="flex justify-between text-xs font-medium text-slate-600 dark:text-neutral-400 mb-1.5">
           <span>Blur</span><span id="blur-val">0px</span>
         </div>
         <input type="range" id="bg-blur" min="0" max="20" value="0"
@@ -340,7 +380,7 @@
   </div>
 
   <div id="suggestion-dropdown"
-       class="hidden absolute z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-1 min-w-28 max-h-48 overflow-y-auto">
+       class="hidden absolute z-50 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 min-w-28 max-h-48 overflow-y-auto">
   </div>
 
   <script>
@@ -400,7 +440,7 @@
       if (matches.length === 0) { dropdown.classList.add('hidden'); return; }
       activeInput = input;
       dropdown.innerHTML = matches.map(r =>
-        `<div class="suggestion-item px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 whitespace-nowrap" data-value="${r}">${r}</div>`
+        `<div class="suggestion-item px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 dark:hover:bg-neutral-700 text-slate-700 dark:text-neutral-200 whitespace-nowrap" data-value="${r}">${r}</div>`
       ).join('');
       positionDropdown(input);
       dropdown.classList.remove('hidden');
@@ -906,6 +946,18 @@
       });
     }
 
+    function toggleMenu(id, event) {
+      if (event) event.stopPropagation();
+      document.querySelectorAll('.dropdown-menu').forEach(m => {
+        if (m.id !== id) m.classList.add('hidden');
+      });
+      document.getElementById(id).classList.toggle('hidden');
+    }
+
+    function closeMenus() {
+      document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.add('hidden'));
+    }
+
     function openSettings() {
       document.getElementById('settings-modal').classList.remove('hidden');
       updateSettingsUI();
@@ -1018,6 +1070,9 @@
             !e.target.classList.contains('role-input')) hideDropdown();
       });
       window.addEventListener('scroll', hideDropdown, true);
+      document.addEventListener('click', e => {
+        if (!e.target.closest('.dropdown-menu')) closeMenus();
+      });
       window.addEventListener('beforeunload', () => {
         syncActiveWeekFromDOM();
         persistTabs();

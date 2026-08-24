@@ -10,9 +10,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <style>body { font-family: 'Inter', sans-serif; }</style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-900 min-h-screen">
+<body class="bg-slate-50 dark:bg-neutral-900 min-h-screen">
 
-  <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+  <header class="bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
     <div class="flex items-center gap-3">
       <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
         <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -21,11 +21,11 @@
       </div>
       <div>
         <h1 class="text-slate-800 dark:text-white font-semibold text-base leading-tight">ShiftDesk</h1>
-        <p class="text-slate-400 dark:text-slate-500 text-xs leading-tight">Multi-Week Export</p>
+        <p class="text-slate-400 dark:text-neutral-500 text-xs leading-tight">Multi-Week Export</p>
       </div>
     </div>
     <a href="{{ url_for('index') }}"
-       class="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+       class="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-700">
       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
       </svg>
@@ -35,20 +35,20 @@
 
   <main class="max-w-lg mx-auto px-4 py-8">
     <h2 class="text-lg font-semibold text-slate-800 dark:text-white mb-1">Select weeks to export</h2>
-    <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">
+    <p class="text-xs text-slate-400 dark:text-neutral-500 mb-4">
       Excel exports one workbook with a tab per week. PDF exports one document with a page break between weeks.
     </p>
 
     {% if weeks %}
     <form id="multi-export-form" method="POST">
-      <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm mb-4">
-        <ul class="divide-y divide-slate-100 dark:divide-slate-700">
+      <div class="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 shadow-sm mb-4">
+        <ul class="divide-y divide-slate-100 dark:divide-neutral-700">
           {% for week in weeks %}
           <li class="px-5 py-3">
             <label class="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" name="week_starts" value="{{ week.week_start }}"
                      class="w-4 h-4 accent-blue-600"/>
-              <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ week.label }}</span>
+              <span class="text-sm font-medium text-slate-700 dark:text-neutral-200">{{ week.label }}</span>
             </label>
           </li>
           {% endfor %}
@@ -67,9 +67,9 @@
       </div>
     </form>
     {% else %}
-    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm px-5 py-12 text-center">
-      <p class="text-sm text-slate-400 dark:text-slate-500">No saved weeks yet.</p>
-      <p class="text-xs text-slate-400 dark:text-slate-600 mt-1">Save or export a schedule first, then it'll show up here.</p>
+    <div class="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 shadow-sm px-5 py-12 text-center">
+      <p class="text-sm text-slate-400 dark:text-neutral-500">No saved weeks yet.</p>
+      <p class="text-xs text-slate-400 dark:text-neutral-600 mt-1">Save or export a schedule first, then it'll show up here.</p>
     </div>
     {% endif %}
   </main>

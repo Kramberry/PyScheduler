@@ -773,8 +773,18 @@
 
     // Editing the "Week Starting" date on the active tab renames that tab
     // (moves its data to the new date key) rather than creating a new tab.
+    // Typing into the date box fires 'change' on every keystroke that forms a
+    // date, including half-typed years (0002, 0202) and over-typed ones
+    // (122026). Only rename once it's a plausible real date; otherwise the
+    // tab gets keyed to a junk date that can't be exported.
+    function isUsableWeekDate(val) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(val || '')) return false;
+      const year = Number(val.slice(0, 4));
+      return year >= 2000 && year <= 2100;
+    }
+
     function renameActiveWeek(newDate) {
-      if (!newDate || newDate === activeWeek) return;
+      if (!isUsableWeekDate(newDate) || newDate === activeWeek) return;
       syncActiveWeekFromDOM();
       if (weekTabs.includes(newDate)) {
         if (confirm('A tab for ' + shortWeekLabel(newDate) + ' is already open. Switch to it instead?')) {
@@ -1072,14 +1082,23 @@
       document.addEventListener('focusout', e => {
         if (e.target.classList.contains('role-input')) setTimeout(hideDropdown, 150);
       });
-      document.addEventListener('click', e => {
+      // Pick on mousedown and preventDefault so the role input never loses
+      // focus. Waiting for 'click' raced the 150ms focusout timer above: any
+      // press held longer than that (a deliberate click, a touchpad tap)
+      // hid the list before the click landed, so the role silently wasn't added.
+      document.getElementById('suggestion-dropdown').addEventListener('mousedown', e => {
+        e.preventDefault();
         const suggestion = e.target.closest('.suggestion-item');
         if (suggestion && activeInput) {
           addRolePill(activeInput.dataset.emp, activeInput.dataset.day, suggestion.dataset.value);
           activeInput.value = '';
           hideDropdown();
-          return;
         }
+      });
+      document.addEventListener('click', e => {
+        // Picking a suggestion keeps focus in the input, so focusin won't
+        // fire again — reopen the list when the already-focused box is clicked.
+        if (e.target.classList.contains('role-input')) { showRoleSuggestions(e.target); return; }
         if (!e.target.closest('#suggestion-dropdown') &&
             !e.target.classList.contains('role-input')) hideDropdown();
       });

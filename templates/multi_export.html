@@ -1,83 +1,63 @@
 <!DOCTYPE html>
-<html lang="en" class="">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Multi-Week Export - ShiftDesk</title>
-  <script>if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');</script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config = { darkMode: 'class' };</script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <title>Export earlier weeks · ShiftDesk</title>
+  {% include "_theme.html" %}
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    ::-webkit-scrollbar { width: 10px; height: 10px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
-    .dark ::-webkit-scrollbar-thumb { background: #525252; }
-    ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
-    ::-webkit-scrollbar-corner { background: transparent; }
+    main { max-width: 620px; margin: 0 auto; padding: 32px 24px 48px; }
+    h1 { font-size: 46px; }
+    .intro { color: var(--ink-2); margin: 6px 0 20px; max-width: 60ch; }
+    .weeks { list-style: none; margin: 0 0 16px; padding: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; box-shadow: var(--shadow); }
+    .weeks li + li { border-top: 1px solid var(--rule); }
+    .weeks label { display: flex; align-items: center; gap: 12px; padding: 13px 16px; cursor: pointer; font-weight: 500; font-variant-numeric: tabular-nums; }
+    .weeks label:hover { background: var(--surface-2); }
+    .weeks input { width: 17px; height: 17px; margin: 0; accent-color: var(--primary); }
+    .weeks label:has(input:checked) { font-weight: 700; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .link-btn { padding: 4px 0; border: 0; background: none; color: var(--ink-2); font-weight: 500; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--rule-strong); }
+    .link-btn:hover { color: var(--primary); }
+    .actions { display: flex; gap: 8px; }
+    .actions .btn { flex: 1; justify-content: center; }
+    .empty { padding: 40px 20px; text-align: center; color: var(--ink-2); background: var(--surface); border: 1px dashed var(--rule-strong); border-radius: 6px; }
+    .empty p + p { margin-top: 4px; color: var(--ink-3); }
+    @media (max-width: 640px) { main { padding: 24px 12px 40px; } }
   </style>
 </head>
-<body class="bg-slate-50 dark:bg-neutral-900 min-h-screen">
+<body>
+  {% set active = 'export' %}
+  {% include "_topbar.html" %}
 
-  <header class="bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
-    <div class="flex items-center gap-3">
-      <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-        <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-        </svg>
-      </div>
-      <div>
-        <h1 class="text-slate-800 dark:text-white font-semibold text-base leading-tight">ShiftDesk</h1>
-        <p class="text-slate-400 dark:text-neutral-500 text-xs leading-tight">Multi-Week Export</p>
-      </div>
-    </div>
-    <a href="{{ url_for('index') }}"
-       class="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-700">
-      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-      </svg>
-      Back to Schedule
-    </a>
-  </header>
-
-  <main class="max-w-lg mx-auto px-4 py-8">
-    <h2 class="text-lg font-semibold text-slate-800 dark:text-white mb-1">Select weeks to export</h2>
-    <p class="text-xs text-slate-400 dark:text-neutral-500 mb-4">
-      Excel exports one workbook with a tab per week. PDF exports one document with a page break between weeks.
-    </p>
+  <main>
+    <h1 class="display">Export earlier weeks</h1>
+    <p class="intro">Tick the weeks you want. Excel gives one sheet per week; PDF gives one page per week.</p>
 
     {% if weeks %}
     <form id="multi-export-form" method="POST">
-      <div class="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 shadow-sm mb-4">
-        <ul class="divide-y divide-slate-100 dark:divide-neutral-700">
-          {% for week in weeks %}
-          <li class="px-5 py-3">
-            <label class="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" name="week_starts" value="{{ week.week_start }}"
-                     class="w-4 h-4 accent-blue-600"/>
-              <span class="text-sm font-medium text-slate-700 dark:text-neutral-200">{{ week.label }}</span>
-            </label>
-          </li>
-          {% endfor %}
-        </ul>
+      <div class="toolbar">
+        <span class="field-label" style="margin:0">{{ weeks | length }} saved week{{ '' if weeks | length == 1 else 's' }}</span>
+        <button type="button" class="link-btn" id="toggle-all">Select all</button>
       </div>
-
-      <div class="flex gap-3">
-        <button type="submit" formaction="{{ url_for('export_multi_xlsx') }}"
-                class="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
-          Export Excel
-        </button>
-        <button type="submit" formaction="{{ url_for('export_multi_pdf') }}"
-                class="flex-1 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors">
-          Export PDF
-        </button>
+      <ul class="weeks">
+        {% for week in weeks %}
+        <li>
+          <label>
+            <input type="checkbox" name="week_starts" value="{{ week.week_start }}"/>
+            {{ week.label }}
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+      <div class="actions">
+        <button type="submit" formaction="{{ url_for('export_multi_xlsx') }}" class="btn btn-primary">Export Excel</button>
+        <button type="submit" formaction="{{ url_for('export_multi_pdf') }}" class="btn">Export PDF</button>
       </div>
     </form>
     {% else %}
-    <div class="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 shadow-sm px-5 py-12 text-center">
-      <p class="text-sm text-slate-400 dark:text-neutral-500">No saved weeks yet.</p>
-      <p class="text-xs text-slate-400 dark:text-neutral-600 mt-1">Save or export a schedule first, then it'll show up here.</p>
+    <div class="empty">
+      <p>No saved weeks yet.</p>
+      <p>Weeks are saved when you print or export them from the schedule.</p>
     </div>
     {% endif %}
   </main>
@@ -85,13 +65,25 @@
   {% include "_confirm_modal.html" %}
 
   <script>
-    document.getElementById('multi-export-form')?.addEventListener('submit', e => {
-      const checked = e.target.querySelectorAll('input[name="week_starts"]:checked');
-      if (checked.length === 0) {
+    const form = document.getElementById('multi-export-form');
+    form?.addEventListener('submit', e => {
+      if (!form.querySelector('input[name="week_starts"]:checked')) {
         e.preventDefault();
-        showNotice('Select at least one week first.');
+        showNotice('Tick at least one week first.');
       }
     });
+    const toggleAll = document.getElementById('toggle-all');
+    function syncToggleLabel() {
+      const boxes = [...form.querySelectorAll('input[name="week_starts"]')];
+      toggleAll.textContent = boxes.every(b => b.checked) ? 'Clear all' : 'Select all';
+    }
+    toggleAll?.addEventListener('click', () => {
+      const boxes = [...form.querySelectorAll('input[name="week_starts"]')];
+      const check = !boxes.every(b => b.checked);
+      boxes.forEach(b => { b.checked = check; });
+      syncToggleLabel();
+    });
+    form?.addEventListener('change', syncToggleLabel);
   </script>
 </body>
 </html>

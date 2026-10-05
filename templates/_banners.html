@@ -1,0 +1,149 @@
+{# Optional decorative side banners + their settings dialog. Stored per
+   browser in localStorage; include right after <body>. #}
+<div id="bg-layer-left" class="bg-side-banner bg-side-banner-left"></div>
+<div id="bg-layer-right" class="bg-side-banner bg-side-banner-right"></div>
+<script>
+  (function () {  // paint the saved banner before first render, no flash
+    const img = localStorage.getItem('bgImage');
+    if (!img) return;
+    const opacity = (localStorage.getItem('bgOpacity') || 25) / 100;
+    const blur = parseFloat(localStorage.getItem('bgBlur') || 0);
+    const s = document.createElement('style');
+    s.textContent = '#bg-layer-left, #bg-layer-right{background-image:url("' + img + '");opacity:' + opacity + (blur > 0 ? ';filter:blur(' + blur + 'px);transform:scale(1.05)' : '') + '}';
+    document.head.appendChild(s);
+  })();
+</script>
+
+<style>
+  .banner-preview {
+    height: 112px; margin: 16px 0; border-radius: var(--radius);
+    border: 1px solid var(--rule); background: var(--surface-2) center / cover no-repeat;
+    display: flex; align-items: center; justify-content: center; color: var(--ink-3);
+  }
+  .banner-pick {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    height: 40px; border: 1px dashed var(--rule-strong); border-radius: var(--radius);
+    font-weight: 600; cursor: pointer; margin-bottom: 16px;
+  }
+  .banner-pick:hover { border-color: var(--primary); color: var(--primary); }
+  .banner-pick svg { width: 16px; height: 16px; }
+  .slider { margin-bottom: 14px; }
+  .slider-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); margin-bottom: 4px; }
+  .slider input { width: 100%; accent-color: var(--primary); }
+  .modal-close { position: absolute; top: 12px; right: 12px; }
+</style>
+
+<div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+  <div class="modal-scrim" onclick="closeSettings()"></div>
+  <div class="modal-panel">
+    <button type="button" class="icon-btn modal-close" onclick="closeSettings()" aria-label="Close">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+    <h2 id="settings-title">Side banners</h2>
+    <p style="color:var(--ink-2);font-size:13px;margin-top:4px">A picture shown in the empty space either side of the page. Only appears on wide screens.</p>
+    <div id="bg-preview" class="banner-preview"><span id="bg-preview-label">No picture yet</span></div>
+    <label class="banner-pick">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+      Choose picture
+      <input type="file" id="bg-file-input" accept="image/*" onchange="handleBgUpload(this)" class="hidden"/>
+    </label>
+    <div class="slider">
+      <div class="slider-head"><label for="bg-opacity">Opacity</label><span id="opacity-val" class="num">25%</span></div>
+      <input type="range" id="bg-opacity" min="0" max="100" value="25" oninput="updateBgOpacity(this.value)"/>
+    </div>
+    <div class="slider">
+      <div class="slider-head"><label for="bg-blur">Blur</label><span id="blur-val" class="num">0px</span></div>
+      <input type="range" id="bg-blur" min="0" max="20" value="0" oninput="updateBgBlur(this.value)"/>
+    </div>
+    <button type="button" onclick="removeBg()" id="remove-bg-btn" class="btn btn-quiet btn-block hidden" style="color:var(--danger)">Remove picture</button>
+  </div>
+</div>
+
+<script>
+  function applyBackground() {
+    const img     = localStorage.getItem('bgImage');
+    const opacity = (localStorage.getItem('bgOpacity') || 25) / 100;
+    const blur    = parseFloat(localStorage.getItem('bgBlur') || 0);
+    [document.getElementById('bg-layer-left'), document.getElementById('bg-layer-right')].forEach(layer => {
+      if (!layer) return;
+      if (img) {
+        layer.style.backgroundImage = `url('${img}')`;
+        layer.style.opacity   = opacity;
+        layer.style.filter    = blur > 0 ? `blur(${blur}px)` : 'none';
+        layer.style.transform = blur > 0 ? 'scale(1.05)' : 'none';
+      } else {
+        layer.style.backgroundImage = 'none';
+        layer.style.opacity = 0;
+      }
+    });
+  }
+
+  function openSettings() {
+    document.getElementById('settings-modal').classList.remove('hidden');
+    updateSettingsUI();
+  }
+
+  function closeSettings() {
+    document.getElementById('settings-modal').classList.add('hidden');
+  }
+
+  function updateSettingsUI() {
+    const img     = localStorage.getItem('bgImage');
+    const opacity = localStorage.getItem('bgOpacity') || 25;
+    const blur    = localStorage.getItem('bgBlur')    || 0;
+    const preview = document.getElementById('bg-preview');
+    preview.style.backgroundImage = img ? `url('${img}')` : '';
+    document.getElementById('bg-preview-label').classList.toggle('hidden', !!img);
+    document.getElementById('remove-bg-btn').classList.toggle('hidden', !img);
+    document.getElementById('bg-opacity').value        = opacity;
+    document.getElementById('opacity-val').textContent = opacity + '%';
+    document.getElementById('bg-blur').value           = blur;
+    document.getElementById('blur-val').textContent    = blur + 'px';
+  }
+
+  function handleBgUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showNotice('That picture is over 5 MB. Choose a smaller one.');
+      input.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        localStorage.setItem('bgImage', e.target.result);
+      } catch {
+        showNotice("Couldn't save the picture — the browser's storage is full. Try a smaller one.");
+        return;
+      }
+      applyBackground();
+      updateSettingsUI();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function updateBgOpacity(val) {
+    localStorage.setItem('bgOpacity', val);
+    document.getElementById('opacity-val').textContent = val + '%';
+    applyBackground();
+  }
+
+  function updateBgBlur(val) {
+    localStorage.setItem('bgBlur', val);
+    document.getElementById('blur-val').textContent = val + 'px';
+    applyBackground();
+  }
+
+  function removeBg() {
+    localStorage.removeItem('bgImage');
+    document.getElementById('bg-file-input').value = '';
+    applyBackground();
+    updateSettingsUI();
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !document.getElementById('settings-modal').classList.contains('hidden')) closeSettings();
+  });
+  document.addEventListener('DOMContentLoaded', applyBackground);
+</script>

@@ -440,6 +440,22 @@ def index():
 # ------------------------------------
 # PRINT PREVIEW
 # ------------------------------------
+# Same magnet inks and colour rule as roleColorIndex() in _theme.html, so a
+# role prints in the colour it has on screen: its place in the roles list,
+# falling back to a name hash for roles not in the list.
+ROLE_INKS = ["#0A7EA4", "#C2185B", "#A86B00", "#2E7D4F", "#6B46C1", "#C05621", "#4A5A6A", "#00838F"]
+
+
+def role_color_index(role, role_order):
+    key = str(role or "").strip().lower()
+    if key in role_order:
+        return role_order.index(key) % len(ROLE_INKS)
+    h = 0
+    for ch in key:
+        h = (h * 31 + ord(ch)) & 0xFFFFFFFF
+    return h % len(ROLE_INKS)
+
+
 @app.route("/print-preview", methods=["POST"])
 def print_preview():
     employees = load_employees()
@@ -473,16 +489,21 @@ def print_preview():
                 total += calculate_hours(f"{cell['start']} - {cell['end']}")
         totals[emp] = total
 
-    role_color_palette = [
-        "#2563EB", "#7C3AED", "#0D9488", "#EA580C", "#DB2777",
-        "#16A34A", "#D97706", "#DC2626", "#0891B2", "#7C2D12",
-    ]
+    role_order = [str(r).strip().lower() for r in load_roles()]
     role_colors = {}
     for emp in employees:
         for day in DAYS:
             for role in saved_data["schedule"][emp][day]["role"]:
                 if role and role != "PTO" and role not in role_colors:
-                    role_colors[role] = role_color_palette[len(role_colors) % len(role_color_palette)]
+                    role_colors[role] = ROLE_INKS[role_color_index(role, role_order)]
+
+    try:
+        start_date, end_date, _ = week_date_range_text(week_start)
+        end_text = str(end_date.day) if end_date.month == start_date.month else f"{end_date.strftime('%b')} {end_date.day}"
+        week_label = f"{start_date.strftime('%b')} {start_date.day} – {end_text}, {end_date.year}"
+        day_dates = [(start_date + timedelta(days=i)).day for i in range(len(DAYS))]
+    except (TypeError, ValueError):
+        week_label, day_dates = "", []
 
     return render_template(
         "print_preview.html",
@@ -491,6 +512,8 @@ def print_preview():
         saved=saved_data,
         totals=totals,
         role_colors=role_colors,
+        week_label=week_label,
+        day_dates=day_dates,
     )
 
 

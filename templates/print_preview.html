@@ -2,96 +2,79 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Print Preview – Weekly Schedule</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>{{ week_label or 'Weekly schedule' }} · Print · ShiftDesk</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet"/>
 <style>
-  :root {
-    --navy: #1E3A5F;
-    --border: #CBD5E1;
+  /* Always printed on white paper, so no dark theme here. */
+  :root { --ink: #1D2A35; --ink-2: #4D5C67; --ink-3: #76848E; --rule: #CBD4D8; --primary: #076A8C; --pto: #FFF6CF; --pto-ink: #634D00; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #E9EEEE; color: var(--ink); font-family: 'Archivo', 'Segoe UI', system-ui, sans-serif; font-size: 13px; -webkit-font-smoothing: antialiased; }
+
+  .print-bar { position: sticky; top: 0; display: flex; align-items: center; gap: 10px; padding: 10px 24px; background: #fff; border-bottom: 1px solid var(--rule); }
+  .print-bar p { flex: 1; margin: 0; color: var(--ink-2); }
+  .btn { height: 36px; padding: 0 16px; border-radius: 4px; border: 1px solid #A7B4BA; background: #fff; color: var(--ink); font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
+  .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn:focus-visible { outline: 2px solid #0A84B8; outline-offset: 2px; }
+
+  .sheet { max-width: 1100px; margin: 24px auto; padding: 36px 40px 28px; background: #fff; box-shadow: 0 10px 30px -16px rgba(29,42,53,.35); }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 18px; }
+  .crop {
+    padding: 10px 16px 8px;
+    background:
+      linear-gradient(var(--ink) 0 0) 0 0 / 12px 1.5px no-repeat, linear-gradient(var(--ink) 0 0) 0 0 / 1.5px 12px no-repeat,
+      linear-gradient(var(--ink) 0 0) 100% 0 / 12px 1.5px no-repeat, linear-gradient(var(--ink) 0 0) 100% 0 / 1.5px 12px no-repeat,
+      linear-gradient(var(--ink) 0 0) 0 100% / 12px 1.5px no-repeat, linear-gradient(var(--ink) 0 0) 0 100% / 1.5px 12px no-repeat,
+      linear-gradient(var(--ink) 0 0) 100% 100% / 12px 1.5px no-repeat, linear-gradient(var(--ink) 0 0) 100% 100% / 1.5px 12px no-repeat;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', system-ui, sans-serif; background: #fff;
-         color: #1A202C; font-size: 13px; }
+  h1 { margin: 0; font-stretch: 62%; font-weight: 800; font-size: 44px; line-height: .95; font-variant-numeric: tabular-nums; }
+  .brand { font-stretch: 75%; font-weight: 800; font-size: 15px; color: var(--ink-3); }
 
-  /* Screen-only controls */
-  .print-bar {
-    background: var(--navy); color: #fff;
-    padding: 12px 24px; display: flex; align-items: center; gap: 12px;
-  }
-  .print-bar h2 { font-size: 15px; font-weight: 700; flex: 1; }
-  .btn { padding: 7px 16px; border-radius: 6px; font-size: 13px;
-         font-weight: 600; cursor: pointer; border: none; }
-  .btn-print  { background: #F59E0B; color: #1A202C; }
-  .btn-close  { background: rgba(255,255,255,.15); color: #fff; }
-  .btn-close:hover { background: rgba(255,255,255,.25); }
-
-  /* Page */
-  .page { max-width: 1100px; margin: 24px auto; padding: 0 24px; }
-  .page-header { text-align: center; margin-bottom: 20px; }
-  .page-header h1 { font-size: 22px; font-weight: 800; color: var(--navy); }
-  .page-header p  { font-size: 14px; color: #64748B; margin-top: 4px; }
-
-  /* Table */
   table { width: 100%; border-collapse: collapse; }
-  th {
-    background: var(--navy); color: #fff;
-    padding: 9px 12px; font-size: 11px; text-transform: uppercase;
-    letter-spacing: .5px; text-align: left;
-  }
-  td {
-    border: 1px solid var(--border);
-    padding: 8px 10px;
-    vertical-align: top;
-    font-size: 12px;
-    min-height: 42px;
-  }
-  tr:nth-child(even) td { background: #F8FAFC; }
-  td.emp { font-weight: 700; color: var(--navy); background: #F1F5F9 !important;
-            border-right: 2px solid var(--border); white-space: nowrap; }
-  td.hrs { text-align: center; font-weight: 700; color: var(--navy);
-            background: #F1F5F9 !important; }
-
-  /* Role badges */
-  .role-badge {
-    display: inline-block; padding: 2px 7px; border-radius: 999px;
-    font-size: 10px; font-weight: 600; color: #fff; margin-top: 3px;
-    margin-right: 2px;
-  }
-  .shift-time { font-size: 11px; font-weight: 600; color: #1A202C; }
-
-  /* Footer */
-  .footer { text-align: center; color: #94A3B8; font-size: 11px; margin-top: 16px; }
+  th { padding: 8px 8px 6px; text-align: left; vertical-align: bottom; border-bottom: 2px solid var(--ink); font-weight: 600; color: var(--ink-2); }
+  th .n { font-stretch: 62%; font-weight: 800; font-size: 24px; color: var(--ink); margin-right: 5px; font-variant-numeric: tabular-nums; }
+  td { padding: 7px 8px; vertical-align: top; border-bottom: 1px solid var(--rule); }
+  td + td, th + th { border-left: 1px solid var(--rule); }
+  td.emp { font-weight: 700; white-space: nowrap; }
+  td.hrs, th.hrs { text-align: right; }
+  td.hrs { font-stretch: 62%; font-weight: 800; font-size: 19px; font-variant-numeric: tabular-nums; }
+  td.pto { background: var(--pto); }
+  .pto-label { font-stretch: 75%; font-weight: 800; font-size: 15px; color: var(--pto-ink); }
+  .shift-time { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .role { display: inline-block; margin: 4px 3px 0 0; padding: 2px 7px 2px 6px; border-left: 3px solid var(--c); border-radius: 2px 3px 3px 2px; background: color-mix(in srgb, var(--c) 13%, #fff); color: color-mix(in srgb, var(--c) 62%, var(--ink)); font-size: 11.5px; font-weight: 600; }
+  .foot { display: flex; justify-content: space-between; margin-top: 14px; color: var(--ink-3); font-size: 11.5px; }
 
   @media print {
+    @page { size: landscape; margin: 10mm; }
+    body { background: #fff; }
     .print-bar { display: none !important; }
-    .page { margin: 0; padding: 8px; max-width: 100%; }
-    body { font-size: 11px; }
-    th { font-size: 10px; padding: 6px 8px; }
-    td { padding: 5px 8px; }
+    .sheet { margin: 0; padding: 0; max-width: none; box-shadow: none; }
+    td.pto, .role { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
 </head>
 <body>
 
 <div class="print-bar">
-  <h2>🖨 Print Preview</h2>
-  <button class="btn btn-print" onclick="window.print()">Print / Save PDF</button>
-  <button class="btn btn-close" onclick="window.close()">Close</button>
+  <p>This is how the schedule will look on paper.</p>
+  <button class="btn" onclick="window.close()">Close</button>
+  <button class="btn btn-primary" onclick="window.print()">Print or save as PDF</button>
 </div>
 
-<div class="page">
-  <div class="page-header">
-    <h1>Weekly Schedule</h1>
-    {% if saved and saved.week_start %}
-      <p>Week of {{ saved.week_start }}</p>
-    {% endif %}
+<div class="sheet">
+  <div class="head">
+    <div class="crop"><h1>{{ week_label or 'Weekly schedule' }}</h1></div>
+    <span class="brand">ShiftDesk</span>
   </div>
 
   <table>
     <thead>
       <tr>
-        <th>Employee</th>
-        {% for day in days %}<th>{{ day }}</th>{% endfor %}
-        <th style="text-align:center;">Hrs</th>
+        <th>Team</th>
+        {% for day in days %}
+        <th>{% if day_dates %}<span class="n">{{ day_dates[loop.index0] }}</span>{% endif %}{{ day[:3] }}</th>
+        {% endfor %}
+        <th class="hrs">Hours</th>
       </tr>
     </thead>
     <tbody>
@@ -108,17 +91,14 @@
             <td class="emp">{{ emp }}</td>
             {% for day in days %}
               {% set cell = emp_data.get(day, {}) %}
+              {% if cell.role and 'PTO' in cell.role %}
+              <td class="pto"><span class="pto-label">Day off</span></td>
+              {% else %}
               <td>
-                {% if cell.role and 'PTO' in cell.role %}
-                  <span class="role-badge" style="background:#6B7280">PTO</span>
-                {% elif cell.start and cell.end %}
-                  <div class="shift-time">{{ cell.start }} – {{ cell.end }}</div>
-                  {% for role in cell.role %}
-                    {% set color = role_colors.get(role, '#6B7280') %}
-                    <span class="role-badge" style="background:{{ color }}">{{ role }}</span>
-                  {% endfor %}
-                {% endif %}
+                {% if cell.start and cell.end %}<div class="shift-time">{{ cell.start }} – {{ cell.end }}</div>{% endif %}
+                {% for role in cell.role %}{% if role %}<span class="role" style="--c: {{ role_colors.get(role, '#4A5A6A') }}">{{ role }}</span>{% endif %}{% endfor %}
               </td>
+              {% endif %}
             {% endfor %}
             <td class="hrs">{{ "%.1f"|format(totals.get(emp, 0)) }}</td>
           </tr>
@@ -128,7 +108,7 @@
     </tbody>
   </table>
 
-  <div class="footer">Generated by Shift Scheduler</div>
+  <div class="foot"><span>Day off counts as 8 hours.</span><span>Printed from ShiftDesk</span></div>
 </div>
 
 </body>

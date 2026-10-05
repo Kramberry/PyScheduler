@@ -1,0 +1,255 @@
+{# Shared look for every ShiftDesk screen. The idea is a shop-floor
+   production board: one white board surface with a printed grid, roles as
+   coloured "magnets" (T-card style chips), and the week posted in big
+   condensed type inside printer's crop marks. Archivo's width axis does
+   double duty — extra-condensed for the board headings, normal for UI text. #}
+<script>if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --board:        #E9EEEE;   /* the wall the board hangs on */
+    --surface:      #FFFFFF;   /* board surface / cells */
+    --surface-2:    #F4F7F7;   /* headers, alternate rows */
+    --ink:          #1D2A35;   /* main text */
+    --ink-2:        #4D5C67;   /* secondary text */
+    --ink-3:        #76848E;   /* hints, placeholders */
+    --rule:         #D4DCDF;   /* printed grid lines */
+    --rule-strong:  #A7B4BA;
+    --primary:      #076A8C;   /* process-cyan ink, darkened for contrast */
+    --primary-hover:#05566F;
+    --primary-soft: #DFF0F6;
+    --on-primary:   #FFFFFF;
+    --pto:          #F2C10F;   /* highlighter yellow */
+    --pto-soft:     #FFF6CF;
+    --pto-ink:      #634D00;
+    --danger:       #B42318;
+    --danger-soft:  #FCEBE9;
+    --focus:        #0A84B8;
+    --shadow:       0 1px 0 rgba(29, 42, 53, .06), 0 8px 24px -12px rgba(29, 42, 53, .18);
+
+    /* Role magnet inks — a role keeps its colour everywhere (see roleColorIndex). */
+    --r0: #0A7EA4; --r1: #C2185B; --r2: #A86B00; --r3: #2E7D4F;
+    --r4: #6B46C1; --r5: #C05621; --r6: #4A5A6A; --r7: #00838F;
+
+    --font: 'Archivo', 'Segoe UI', system-ui, sans-serif;
+    --radius: 4px;
+    color-scheme: light;
+  }
+  .dark {
+    --board:        #10171C;
+    --surface:      #182229;
+    --surface-2:    #1D2931;
+    --ink:          #E4EAEE;
+    --ink-2:        #A9B6BF;
+    --ink-3:        #7C8A94;
+    --rule:         #2B3943;
+    --rule-strong:  #3E4F5B;
+    --primary:      #4DB4D9;
+    --primary-hover:#74C7E5;
+    --primary-soft: #133443;
+    --on-primary:   #06222E;
+    --pto:          #F2C10F;
+    --pto-soft:     #3A3112;
+    --pto-ink:      #F7D95C;
+    --danger:       #F0857A;
+    --danger-soft:  #3D1C1A;
+    --focus:        #74C7E5;
+    --shadow:       0 1px 0 rgba(0, 0, 0, .3), 0 10px 28px -14px rgba(0, 0, 0, .6);
+    --r0: #5CC3E6; --r1: #F07AA8; --r2: #E8B84A; --r3: #6CCB92;
+    --r4: #AD93F0; --r5: #F29A62; --r6: #A3B3C2; --r7: #4FD1D9;
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: var(--board); color: var(--ink);
+    font-family: var(--font); font-size: 14px; line-height: 1.45;
+    font-stretch: 100%;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, p { margin: 0; }
+  a { color: var(--primary); }
+  button, input, select { font: inherit; color: inherit; }
+  .hidden { display: none !important; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+
+  /* Display type — the board's headings. */
+  .display {
+    font-stretch: 62%; font-weight: 800; letter-spacing: -0.01em;
+    line-height: .95; font-variant-numeric: tabular-nums;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 30;
+    display: flex; align-items: center; gap: 28px;
+    height: 56px; padding: 0 24px;
+    background: var(--surface); border-bottom: 1px solid var(--rule);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+  .brand svg { width: 22px; height: 22px; color: var(--primary); }
+  .brand span { font-stretch: 75%; font-weight: 800; font-size: 19px; letter-spacing: .005em; }
+  .nav { display: flex; gap: 4px; height: 100%; }
+  .nav a {
+    display: flex; align-items: center; padding: 0 12px;
+    color: var(--ink-2); text-decoration: none; font-weight: 500;
+    border-bottom: 3px solid transparent; margin-bottom: -1px;
+  }
+  .nav a:hover { color: var(--ink); }
+  .nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--primary); font-weight: 600; }
+  .topbar-tools { margin-left: auto; display: flex; gap: 4px; }
+  .icon-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; padding: 0; border: 0; border-radius: var(--radius);
+    background: transparent; color: var(--ink-2); cursor: pointer;
+  }
+  .icon-btn:hover { background: var(--surface-2); color: var(--ink); }
+  .icon-btn svg { width: 19px; height: 19px; }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 38px; padding: 0 14px;
+    border: 1px solid var(--rule-strong); border-radius: var(--radius);
+    background: var(--surface); color: var(--ink);
+    font-weight: 600; font-size: 14px; white-space: nowrap; cursor: pointer;
+    text-decoration: none;
+  }
+  .btn:hover { border-color: var(--ink-2); }
+  .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .btn-primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+  .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+  .btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .dark .btn-danger { color: #2A0B08; }
+  .btn-danger:hover { filter: brightness(1.08); }
+  .btn-quiet { border-color: transparent; background: transparent; color: var(--ink-2); }
+  .btn-quiet:hover { background: var(--surface-2); color: var(--ink); border-color: transparent; }
+  .btn-block { width: 100%; justify-content: center; }
+
+  /* ---------- Fields ---------- */
+  .input, .select {
+    height: 38px; padding: 0 10px;
+    border: 1px solid var(--rule-strong); border-radius: var(--radius);
+    background: var(--surface); color: var(--ink);
+  }
+  .input::placeholder { color: var(--ink-3); }
+  .input:focus, .select:focus { outline: 2px solid var(--focus); outline-offset: -1px; border-color: transparent; }
+  .field-label { display: block; font-size: 12.5px; font-weight: 500; color: var(--ink-2); margin-bottom: 4px; }
+
+  /* ---------- Menus ---------- */
+  .menu-wrap { position: relative; }
+  .dropdown-menu {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 40;
+    min-width: 220px; padding: 6px;
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 6px;
+    box-shadow: var(--shadow);
+  }
+  .menu-item {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 9px 10px; border: 0; border-radius: var(--radius);
+    background: transparent; color: var(--ink); text-align: left; text-decoration: none;
+    font-weight: 500; cursor: pointer;
+  }
+  .menu-item:hover { background: var(--surface-2); }
+  .menu-item svg { width: 16px; height: 16px; color: var(--ink-2); flex-shrink: 0; }
+  .menu-item small { display: block; color: var(--ink-3); font-weight: 400; font-size: 12px; }
+  .menu-item.is-danger, .menu-item.is-danger svg { color: var(--danger); }
+  .menu-sep { height: 1px; background: var(--rule); margin: 6px 4px; }
+
+  /* ---------- Role magnets ---------- */
+  .role-pill, .role-chip {
+    --role: var(--r6);
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 24px; padding: 0 4px 0 8px;
+    border-left: 4px solid var(--role); border-radius: 2px 4px 4px 2px;
+    background: color-mix(in srgb, var(--role) 13%, var(--surface));
+    color: color-mix(in srgb, var(--role) 62%, var(--ink));
+    font-size: 12.5px; font-weight: 600; white-space: nowrap; line-height: 1;
+  }
+  .role-chip { padding-right: 8px; }
+  [data-color="0"] { --role: var(--r0); } [data-color="1"] { --role: var(--r1); }
+  [data-color="2"] { --role: var(--r2); } [data-color="3"] { --role: var(--r3); }
+  [data-color="4"] { --role: var(--r4); } [data-color="5"] { --role: var(--r5); }
+  [data-color="6"] { --role: var(--r6); } [data-color="7"] { --role: var(--r7); }
+  .role-pill button {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; padding: 0; border: 0; border-radius: 3px;
+    background: transparent; color: inherit; opacity: .55; cursor: pointer;
+    font-size: 13px; line-height: 1;
+  }
+  .role-pill button:hover { opacity: 1; background: color-mix(in srgb, var(--role) 22%, transparent); }
+
+  /* ---------- Modals ---------- */
+  .modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal-scrim { position: absolute; inset: 0; background: rgba(16, 23, 28, .45); }
+  .modal-panel {
+    position: relative; width: 100%; max-width: 400px; padding: 22px;
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 8px;
+    box-shadow: var(--shadow);
+  }
+  .modal-panel h2 { font-size: 18px; font-weight: 700; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+  /* Pop-in for things the user just opened. */
+  @media (prefers-reduced-motion: no-preference) {
+    .modal:not(.hidden) .modal-panel { animation: pop .14s ease-out; }
+    .dropdown-menu:not(.hidden), #suggestion-dropdown:not(.hidden) { animation: drop .12s ease-out; }
+  }
+  @keyframes pop  { from { opacity: 0; transform: translateY(6px) scale(.98); } }
+  @keyframes drop { from { opacity: 0; transform: translateY(-4px); } }
+
+  /* ---------- Notices ---------- */
+  .notice {
+    padding: 10px 14px; border-radius: var(--radius);
+    background: var(--primary-soft); color: var(--ink);
+    border-left: 4px solid var(--primary);
+  }
+
+  /* ---------- Side banners (optional decoration) ---------- */
+  /* Width = the real empty margin beside the 1536px content (+32px gap),
+     capped at 200px, so a banner can never overlap the board. */
+  .bg-side-banner {
+    position: fixed; top: 0; bottom: 0;
+    width: clamp(0px, calc((100vw - 1600px) / 2), 200px);
+    background-size: cover; background-position: center; background-repeat: no-repeat;
+    z-index: 0; pointer-events: none; opacity: 0;
+    transition: opacity .3s, filter .3s, width .2s;
+  }
+  .bg-side-banner-left { left: 0; }
+  .bg-side-banner-right { right: 0; }
+
+  /* Windows Chrome/Edge only drop their default scrollbar (and its stray
+     arrow buttons) once the whole scrollbar is styled. */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 9999px; border: 2px solid var(--board); }
+  ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+  ::-webkit-scrollbar-corner { background: transparent; }
+
+  @media (max-width: 640px) {
+    .topbar { gap: 12px; padding: 0 12px; }
+    .brand span { display: none; }
+  }
+</style>
+<script>
+  // Magnet colour = the role's place in the shared roles list, so the
+  // first eight roles never share a colour (a name hash collided even with
+  // four). Roles not in the list yet fall back to a name hash.
+  // print_preview's role_color_index() in app.py mirrors this.
+  const ROLE_ORDER = {{ (roles or []) | tojson }}.map(r => String(r).trim().toLowerCase());
+  function roleColorIndex(role) {
+    const s = String(role || '').trim().toLowerCase();
+    const i = ROLE_ORDER.indexOf(s);
+    if (i >= 0) return i % 8;
+    let h = 0;
+    for (let k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) >>> 0;
+    return h % 8;
+  }
+</script>

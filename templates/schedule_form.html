@@ -1,252 +1,219 @@
 <!DOCTYPE html>
-<html lang="en" class="">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Weekly Scheduler</title>
-  <script>if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');</script>
-  <script>
-    (function() {
-      const img = localStorage.getItem('bgImage');
-      if (!img) return;
-      const opacity = (localStorage.getItem('bgOpacity') || 25) / 100;
-      const blur = parseFloat(localStorage.getItem('bgBlur') || 0);
-      const s = document.createElement('style');
-      s.textContent = '#bg-layer-left, #bg-layer-right{background-image:url("' + img + '");opacity:' + opacity + (blur > 0 ? ';filter:blur(' + blur + 'px);transform:scale(1.05)' : '') + '}';
-      document.head.appendChild(s);
-    })();
-  </script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config = { darkMode: 'class' };</script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <title>Schedule · ShiftDesk</title>
+  {% include "_theme.html" %}
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    .emp-row:hover { background-color: #f8fafc; }
-    .dark .emp-row:hover { background-color: #262626; }
-    .role-pill {
-      display: inline-flex; align-items: center; gap: 4px;
-      background: #e0f2fe; color: #0369a1;
-      border-radius: 9999px; padding: 2px 10px;
-      font-size: 0.72rem; font-weight: 500;
-      white-space: nowrap;
-    }
-    .dark .role-pill { background: #0c4a6e; color: #7dd3fc; }
-    .role-pill button { line-height: 1; color: #0369a1; }
-    .dark .role-pill button { color: #7dd3fc; }
-    .role-pill button:hover { color: #ef4444; }
-    .day-cell { min-width: 180px; }
-    .sticky-header th { position: sticky; top: 0; z-index: 10; }
-    .table-scroll { overflow-x: auto; border-radius: 0.75rem; }
-    .time-row { display: flex; gap: 6px; align-items: center; }
-    .time-row select { width: 92px; }
-    .hours-badge { font-variant-numeric: tabular-nums; font-size: 0.78rem; }
+    main { position: relative; z-index: 1; max-width: 1536px; margin: 0 auto; padding: 28px 24px 40px; }
 
-    #week-tabs-bar { display: flex; align-items: flex-end; gap: 2px; overflow-x: auto; padding: 0 4px; }
+    /* ---------- Week heading: the one loud thing on the page ---------- */
+    .week-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px 32px; margin-bottom: 22px; }
+    .crop {
+      --mark: var(--primary);
+      position: relative; padding: 14px 22px 12px;
+      background:
+        linear-gradient(var(--mark) 0 0) 0 0 / 16px 2px no-repeat,
+        linear-gradient(var(--mark) 0 0) 0 0 / 2px 16px no-repeat,
+        linear-gradient(var(--mark) 0 0) 100% 0 / 16px 2px no-repeat,
+        linear-gradient(var(--mark) 0 0) 100% 0 / 2px 16px no-repeat,
+        linear-gradient(var(--mark) 0 0) 0 100% / 16px 2px no-repeat,
+        linear-gradient(var(--mark) 0 0) 0 100% / 2px 16px no-repeat,
+        linear-gradient(var(--mark) 0 0) 100% 100% / 16px 2px no-repeat,
+        linear-gradient(var(--mark) 0 0) 100% 100% / 2px 16px no-repeat;
+    }
+    .week-title { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+    .week-title h1 { font-size: clamp(40px, 6vw, 68px); }
+    .week-title .year { font-stretch: 75%; font-weight: 500; font-size: clamp(20px, 2.4vw, 28px); color: var(--ink-3); }
+    .week-sub { margin-top: 6px; color: var(--ink-2); }
+
+    .week-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+    .week-controls .input { width: 160px; }
+    input[type="date"]::-webkit-inner-spin-button,
+    input[type="date"]::-webkit-outer-spin-button { -webkit-appearance: none; display: none; margin: 0; }
+
+    /* ---------- Week tabs: tickets clipped to the top of the board ---------- */
+    #week-tabs-bar { display: flex; align-items: flex-end; gap: 4px; overflow-x: auto; padding: 0 2px; scrollbar-width: thin; }
     .week-tab {
-      display: flex; align-items: center; gap: 6px;
-      padding: 8px 10px 8px 14px;
-      font-size: 0.8rem; font-weight: 500; white-space: nowrap;
-      color: #64748b; background: #e2e8f0;
-      border-top-left-radius: 8px; border-top-right-radius: 8px;
-      border: 1px solid #cbd5e1; border-bottom: none;
-      cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+      height: 38px; padding: 0 8px 0 14px;
+      background: color-mix(in srgb, var(--surface) 55%, var(--board));
+      border: 1px solid var(--rule); border-bottom: 0; border-radius: 6px 6px 0 0;
+      color: var(--ink-2); font-weight: 500; white-space: nowrap; cursor: pointer;
+      font-variant-numeric: tabular-nums;
     }
-    .dark .week-tab { color: #a3a3a3; background: #262626; border-color: #404040; }
-    .week-tab:hover { background: #f1f5f9; }
-    .dark .week-tab:hover { background: #333333; }
+    .week-tab:hover { color: var(--ink); background: var(--surface); }
     .week-tab.active {
-      color: #1e3a5f; background: #ffffff; border-color: #e2e8f0;
-      font-weight: 600; position: relative; top: 1px;
+      height: 42px; background: var(--surface); color: var(--ink); font-weight: 700;
+      border-color: var(--rule); box-shadow: inset 0 3px 0 var(--primary);
+      position: relative; top: 1px;
     }
-    .dark .week-tab.active { color: #fff; background: #262626; border-color: #404040; }
     .week-tab .tab-close {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 16px; height: 16px; border-radius: 9999px; font-size: 0.85rem; line-height: 1;
-      color: inherit; opacity: 0.6;
+      width: 20px; height: 20px; border-radius: 3px; font-size: 15px; line-height: 1; opacity: .5;
     }
-    .week-tab .tab-close:hover { opacity: 1; background: #fecaca; color: #b91c1c; }
+    .week-tab .tab-close:hover { opacity: 1; background: var(--danger-soft); color: var(--danger); }
     .week-tab-add {
-      flex-shrink: 0; width: 30px; height: 34px; margin-bottom: 1px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem; font-weight: 600; color: #64748b;
-      border: 1px dashed #cbd5e1; border-radius: 8px;
+      flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+      height: 34px; margin: 0 0 4px 6px; padding: 0 12px;
+      border: 1px dashed var(--rule-strong); border-radius: 6px; background: transparent;
+      color: var(--ink-2); font-weight: 600; cursor: pointer;
     }
-    .week-tab-add:hover { color: #2563eb; border-color: #2563eb; background: #eff6ff; }
-    .dark .week-tab-add { color: #a3a3a3; border-color: #404040; }
-    .dark .week-tab-add:hover { color: #60a5fa; border-color: #60a5fa; background: #33333380; }
+    .week-tab-add:hover { color: var(--primary); border-color: var(--primary); }
 
-    /* Decorative side banners — shown flanking the main content, but only
-       as wide as the actual empty margin allows. The main content tops
-       out at 1536px (max-w-screen-2xl); (100vw - 1600px)/2 is the margin
-       beyond that plus a 32px breathing gap, so the banner can never grow
-       wide enough to overlap the content itself — at 1600px or narrower
-       it's 0 (effectively hidden), and it caps at 200px on very wide
-       screens instead of growing without bound. */
-    .bg-side-banner {
-      position: fixed; top: 0; bottom: 0;
-      width: clamp(0px, calc((100vw - 1600px) / 2), 200px);
-      background-size: cover; background-position: center; background-repeat: no-repeat;
-      z-index: 0; pointer-events: none; opacity: 0;
-      transition: opacity 0.3s, filter 0.3s, width 0.2s;
+    /* ---------- The board ---------- */
+    .board { background: var(--surface); border: 1px solid var(--rule); border-radius: 0 6px 6px 6px; box-shadow: var(--shadow); }
+    .table-scroll { overflow-x: auto; border-radius: inherit; }
+    table.grid { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .grid th {
+      padding: 12px 12px 10px; text-align: left; vertical-align: bottom;
+      background: var(--surface-2); border-bottom: 2px solid var(--ink);
+      font-weight: 600; color: var(--ink-2);
     }
-    .bg-side-banner-left { left: 0; }
-    .bg-side-banner-right { right: 0; }
+    .grid th.day-cell { border-left: 1px solid var(--rule); }
+    .dh { display: flex; align-items: baseline; gap: 8px; }
+    .dh-day { font-weight: 600; color: var(--ink-2); }
+    .dh-num { font-stretch: 62%; font-weight: 800; font-size: 34px; line-height: .9; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .dh-mon { font-size: 12.5px; color: var(--ink-3); font-weight: 500; }
 
-    /* Chrome/Edge draw a spin-button (up/down stepper) on date inputs;
-       it's not useful here and reads as a stray UI artifact. */
-    input[type="date"]::-webkit-inner-spin-button,
-    input[type="date"]::-webkit-outer-spin-button {
-      -webkit-appearance: none;
-      display: none;
-      margin: 0;
+    .grid td { padding: 10px 12px; vertical-align: top; border-bottom: 1px solid var(--rule); }
+    .grid tbody tr:last-child td { border-bottom: 0; }
+    .grid td.day-cell { border-left: 1px solid var(--rule); min-width: 196px; }
+    .emp-row:hover td { background: color-mix(in srgb, var(--surface-2) 70%, var(--surface)); }
+
+    .name-cell, .grid th.name-col {
+      position: sticky; left: 0; z-index: 2;
+      min-width: 150px; background: var(--surface); box-shadow: 1px 0 0 var(--rule);
     }
+    .grid th.name-col { background: var(--surface-2); }
+    .name-cell { font-weight: 650; font-size: 15px; white-space: nowrap; }
 
-    /* Windows Chrome/Edge draw small up/down (or left/right) step buttons
-       at the ends of scrollbars by default. Hiding just ::-webkit-scrollbar-button
-       on its own is unreliable — Chrome only fully swaps in custom scrollbar
-       rendering (dropping the OS default, buttons included) once the whole
-       scrollbar is styled, so the track/thumb are defined here too. */
-    ::-webkit-scrollbar { width: 10px; height: 10px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
-    .dark ::-webkit-scrollbar-thumb { background: #525252; }
-    ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
-    ::-webkit-scrollbar-corner { background: transparent; }
+    .cell { display: flex; flex-direction: column; gap: 8px; }
+    .shift-wrapper { display: flex; flex-direction: column; gap: 7px; }
+    .time-row { display: flex; align-items: center; gap: 4px; }
+    .time-row span { color: var(--ink-3); }
+    .time-row select {
+      width: 84px; height: 30px; padding: 0 4px;
+      border: 1px solid var(--rule); border-radius: var(--radius);
+      background: var(--surface); color: var(--ink); font-size: 13px; font-variant-numeric: tabular-nums;
+      cursor: pointer;
+    }
+    .time-row select:hover { border-color: var(--rule-strong); }
+    .time-row select:focus { outline: 2px solid var(--focus); outline-offset: -1px; border-color: transparent; }
+    .role-area { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 24px; }
+    .role-input {
+      width: 72px; min-width: 0; height: 24px; padding: 0 6px;
+      border: 1px dashed transparent; border-radius: var(--radius); background: transparent;
+      color: var(--ink); font-size: 12.5px;
+    }
+    .role-input::placeholder { color: var(--ink-3); }
+    .emp-row:hover .role-input, .role-input:focus { border-color: var(--rule-strong); }
+    /* Fixed width on purpose: growing on focus re-wrapped the cell on blur,
+       moving the PTO box out from under a click aimed at it. */
+    .role-input:focus { outline: none; border-style: solid; border-color: var(--focus); }
+
+    .pto-toggle { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; font-size: 12.5px; color: var(--ink-3); cursor: pointer; user-select: none; }
+    .pto-toggle input { width: 14px; height: 14px; margin: 0; accent-color: var(--pto-ink); cursor: pointer; }
+    .pto-toggle:hover { color: var(--ink-2); }
+    .pto-note { display: none; font-stretch: 75%; font-weight: 800; font-size: 20px; color: var(--pto-ink); line-height: 1; }
+
+    /* A day off reads like a highlighter swipe across the cell. */
+    .grid td.day-cell:has(.pto-checkbox:checked) {
+      background: repeating-linear-gradient(-45deg, var(--pto-soft) 0 10px, color-mix(in srgb, var(--pto) 22%, var(--pto-soft)) 10px 12px);
+    }
+    .day-cell:has(.pto-checkbox:checked) .pto-note { display: block; }
+    .day-cell:has(.pto-checkbox:checked) .pto-toggle { color: var(--pto-ink); font-weight: 600; }
+
+    .hours-col { text-align: right !important; width: 90px; }
+    .hours-cell { text-align: right; white-space: nowrap; }
+    .hours-badge { font-stretch: 62%; font-weight: 800; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+    .hours-unit { display: block; font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+
+    .empty-roster { padding: 56px 24px; text-align: center; color: var(--ink-2); }
+    .empty-roster p + p { margin-top: 6px; }
+
+    #suggestion-dropdown {
+      position: absolute; z-index: 50; min-width: 150px; max-height: 220px; overflow-y: auto; padding: 4px;
+      background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; box-shadow: var(--shadow);
+    }
+    .suggestion-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--radius); font-size: 13px; cursor: pointer; white-space: nowrap; }
+    .suggestion-item:hover { background: var(--surface-2); }
+    .suggestion-item i { width: 4px; height: 14px; border-radius: 1px; background: var(--role); }
+
+    .footnote { margin-top: 16px; color: var(--ink-3); font-size: 13px; max-width: 75ch; }
+
+    @media (max-width: 760px) {
+      main { padding: 20px 12px 32px; }
+      .week-controls { width: 100%; }
+      .week-controls .grow { flex: 1 1 100%; }
+      .week-controls .input { width: 100%; }
+    }
   </style>
 </head>
-<body class="bg-slate-50 dark:bg-neutral-900 min-h-screen">
+<body>
+  {% include "_banners.html" %}
+  {% set active = 'schedule' %}{% set banner_settings = true %}
+  {% include "_topbar.html" %}
 
-  <div id="bg-layer-left" class="bg-side-banner bg-side-banner-left"></div>
-  <div id="bg-layer-right" class="bg-side-banner bg-side-banner-right"></div>
-
-  <header class="bg-white dark:bg-neutral-800 border-b border-slate-200 dark:border-neutral-700 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
-    <div class="flex items-center gap-3">
-      <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-        <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-        </svg>
-      </div>
-      <div>
-        <h1 class="text-slate-800 dark:text-white font-semibold text-base leading-tight">ShiftDesk</h1>
-        <p class="text-slate-400 dark:text-neutral-500 text-xs leading-tight">Weekly Scheduler</p>
-      </div>
-    </div>
-    <div class="flex items-center gap-2">
-      <button onclick="openSettings()"
-              class="p-2 rounded-lg text-slate-500 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors"
-              title="Side banner settings">
-        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-        </svg>
-      </button>
-      <button id="dark-toggle" onclick="toggleDark()"
-              class="p-2 rounded-lg text-slate-500 dark:text-neutral-400 hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors"
-              title="Toggle dark mode">
-        <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-        </svg>
-        <svg id="icon-moon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"/>
-        </svg>
-      </button>
-      <a href="/employees"
-         class="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-neutral-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-700">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-        </svg>
-        Manage Team
-      </a>
-    </div>
-  </header>
-
-  <main class="max-w-screen-2xl mx-auto px-4 py-8">
-
-    <div id="week-tabs-bar" class="mb-0"></div>
-
-    <div class="bg-white dark:bg-neutral-800 rounded-xl rounded-tl-none border border-slate-200 dark:border-neutral-700 shadow-sm p-5 mb-6 flex flex-wrap items-end gap-5">
-      <div>
-        <label class="block text-xs font-semibold text-slate-500 dark:text-neutral-400 uppercase tracking-wide mb-1">Week Starting</label>
-        <input type="date" id="week_start_display" name="week_start_display"
-               value="{{ saved.week_start if saved and saved.week_start else '' }}"
-               class="border border-slate-300 dark:border-neutral-600 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-neutral-200 bg-white dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-               onchange="renameActiveWeek(this.value)"/>
-      </div>
-      <div id="week-label" class="text-sm text-slate-500 dark:text-neutral-400 pb-2"></div>
-      <div class="ml-auto flex gap-3">
-        <button type="button" onclick="copyLastWeek()"
-                class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 border border-slate-300 dark:border-neutral-600 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-          </svg>
-          Copy Previous Week
-        </button>
-        <button type="button" onclick="printPreview()"
-                class="px-4 py-2 text-sm font-medium text-slate-700 bg-amber-400 rounded-lg hover:bg-amber-500 transition-colors flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-          </svg>
-          Print Preview
-        </button>
-
-        <div class="relative">
-          <button type="button" onclick="toggleMenu('export-menu', event)"
-                  class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-            </svg>
-            Export
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </button>
-          <div id="export-menu"
-               class="dropdown-menu hidden absolute right-0 top-full mt-2 z-40 min-w-[190px] bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl shadow-lg p-1.5">
-            <button type="button" onclick="exportAllWeeks('xlsx'); closeMenus();"
-                    title="Exports every open week tab into one workbook"
-                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700 rounded-lg transition-colors text-left">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-              </svg>
-              Export Excel
-            </button>
-            <button type="button" onclick="exportAllWeeks('pdf'); closeMenus();"
-                    title="Exports every open week tab into one PDF"
-                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700 rounded-lg transition-colors text-left">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-              </svg>
-              Export PDF
-            </button>
-          </div>
+  <main>
+    <section class="week-head">
+      <div class="crop">
+        <div class="week-title">
+          <h1 class="display" id="week-label">This week</h1>
+          <span class="year num" id="week-year"></span>
         </div>
+      </div>
 
-        <div class="relative">
-          <button type="button" onclick="toggleMenu('options-menu', event)"
-                  class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 border border-slate-300 dark:border-neutral-600 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-700 transition-colors flex items-center gap-2">
-            Options
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-            </svg>
+      <div class="week-controls">
+        <div class="grow">
+          <label class="field-label" for="week_start_display">Week starting</label>
+          <input type="date" id="week_start_display" name="week_start_display" class="input"
+                 value="{{ saved.week_start if saved and saved.week_start else '' }}"
+                 onchange="renameActiveWeek(this.value)"/>
+        </div>
+        <button type="button" class="btn" onclick="copyLastWeek()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
+          Copy previous week
+        </button>
+        <button type="button" class="btn" onclick="printPreview()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7"/></svg>
+          Print
+        </button>
+        <div class="menu-wrap">
+          <button type="button" class="btn btn-primary" onclick="toggleMenu('export-menu', event)" aria-haspopup="true">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M12 4v11m0 0l-4-4m4 4l4-4M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/></svg>
+            Export
           </button>
-          <div id="options-menu"
-               class="dropdown-menu hidden absolute right-0 top-full mt-2 z-40 min-w-[190px] bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-xl shadow-lg p-1.5">
-            <button type="button" onclick="clearAll(); closeMenus();"
-                    class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700 rounded-lg transition-colors text-left">
-              Clear All
+          <div id="export-menu" class="dropdown-menu hidden">
+            <button type="button" class="menu-item" onclick="exportAllWeeks('xlsx'); closeMenus();">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/></svg>
+              <span>Excel workbook<small>One sheet per open week</small></span>
             </button>
-            <a href="/export-multi"
-               title="Export weeks saved in earlier sessions, not just the tabs open right now"
-               class="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 hover:bg-slate-50 dark:hover:bg-neutral-700 rounded-lg transition-colors text-left">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-              </svg>
-              From Archive
+            <button type="button" class="menu-item" onclick="exportAllWeeks('pdf'); closeMenus();">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+              <span>PDF<small>One page per open week</small></span>
+            </button>
+            <div class="menu-sep"></div>
+            <a class="menu-item" href="{{ url_for('export_multi_picker') }}">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+              <span>Earlier weeks…<small>Pick from every saved week</small></span>
             </a>
           </div>
         </div>
+        <div class="menu-wrap">
+          <button type="button" class="btn btn-quiet" onclick="toggleMenu('options-menu', event)" aria-haspopup="true" aria-label="More actions" title="More actions">
+            <svg fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+          </button>
+          <div id="options-menu" class="dropdown-menu hidden">
+            <button type="button" class="menu-item is-danger" onclick="clearAll(); closeMenus();">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
+              Clear this week
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
 
     <form id="multi-xlsx-form" method="POST" action="/export-multi-xlsx"></form>
     <form id="multi-pdf-form" method="POST" action="/export-multi-pdf"></form>
@@ -255,86 +222,70 @@
              value="{{ saved.week_start if saved and saved.week_start else '' }}"/>
     </form>
 
-    <div class="bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 shadow-sm">
+    <nav id="week-tabs-bar" aria-label="Open weeks"></nav>
+
+    <div class="board">
       <div class="table-scroll">
-        <table class="w-full border-collapse text-sm">
-          <thead class="sticky-header">
-            <tr class="bg-slate-800 dark:bg-neutral-900 text-white">
-              <th class="text-left px-5 py-3.5 font-semibold text-xs uppercase tracking-wider rounded-tl-xl w-36">Team Member</th>
+        <table class="grid">
+          <thead>
+            <tr>
+              <th class="name-col">Team</th>
               {% for day in days %}
-              <th class="day-cell px-4 py-3.5 font-semibold text-xs uppercase tracking-wider text-center" id="header-{{ day }}">{{ day }}</th>
+              <th class="day-cell" id="header-{{ day }}">{{ day[:3] }}</th>
               {% endfor %}
-              <th class="px-4 py-3.5 font-semibold text-xs uppercase tracking-wider text-center rounded-tr-xl w-24">Hours</th>
+              <th class="hours-col">Hours</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100 dark:divide-neutral-700">
+          <tbody>
             {% for emp in employees %}
-            <tr class="emp-row" id="row-{{ emp | replace(' ', '_') }}">
-              <td class="px-5 py-3 font-medium text-slate-700 dark:text-neutral-200 whitespace-nowrap align-top">
-                <div class="flex items-center gap-2">
-                  <div class="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                    {{ emp[0] }}
-                  </div>
-                  {{ emp }}
-                </div>
-              </td>
+            {% set eid = emp | replace(' ', '_') %}
+            {% set emp_saved = saved.schedule[emp] if saved and saved.schedule and emp in saved.schedule else none %}
+            <tr class="emp-row" id="row-{{ eid }}">
+              <td class="name-cell">{{ emp }}</td>
               {% for day in days %}
-              <td class="day-cell px-3 py-2 align-top border-l border-slate-100 dark:border-neutral-700">
-                <div class="flex flex-col gap-1.5" id="cell-{{ emp | replace(' ', '_') }}-{{ day }}">
-                  <label class="flex items-center gap-1.5 cursor-pointer">
-                    <input type="checkbox"
-                           class="pto-checkbox w-3.5 h-3.5 accent-amber-500"
-                           data-emp="{{ emp }}" data-day="{{ day }}"
-                           {% if saved and saved.schedule and emp in saved.schedule and saved.schedule[emp][day].role and 'PTO' in saved.schedule[emp][day].role %}checked{% endif %}
-                           onchange="togglePTO(this)"/>
-                    <span class="text-xs text-slate-500 dark:text-neutral-400 font-medium">PTO</span>
-                  </label>
-                  <div class="shift-wrapper flex flex-col gap-1.5"
-                       id="shift-{{ emp | replace(' ', '_') }}-{{ day }}"
-                       {% if saved and saved.schedule and emp in saved.schedule and saved.schedule[emp][day].role and 'PTO' in saved.schedule[emp][day].role %}style="display:none"{% endif %}>
+              {% set is_pto = emp_saved and emp_saved[day].role and 'PTO' in emp_saved[day].role %}
+              <td class="day-cell">
+                <div class="cell" id="cell-{{ eid }}-{{ day }}">
+                  <div class="shift-wrapper" id="shift-{{ eid }}-{{ day }}" {% if is_pto %}style="display:none"{% endif %}>
                     <div class="time-row">
-                      <select class="start-input border border-slate-200 dark:border-neutral-600 rounded px-1 py-1 text-xs text-slate-700 dark:text-neutral-200 bg-white dark:bg-neutral-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      <select class="start-input" aria-label="{{ emp }} {{ day }} start"
                               data-emp="{{ emp }}" data-day="{{ day }}"
-                              data-value="{% if saved and saved.schedule and emp in saved.schedule %}{{ saved.schedule[emp][day].start | to24h }}{% endif %}"
-                              onchange="recalcRow('{{ emp }}'); scheduleAutosave();"></select>
-                      <span class="text-slate-400 dark:text-neutral-500 text-xs">-</span>
-                      <select class="end-input border border-slate-200 dark:border-neutral-600 rounded px-1 py-1 text-xs text-slate-700 dark:text-neutral-200 bg-white dark:bg-neutral-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                              data-value="{% if emp_saved %}{{ emp_saved[day].start | to24h }}{% endif %}"
+                              onchange="recalcRow(this.dataset.emp); scheduleAutosave();"></select>
+                      <span aria-hidden="true">–</span>
+                      <select class="end-input" aria-label="{{ emp }} {{ day }} end"
                               data-emp="{{ emp }}" data-day="{{ day }}"
-                              data-value="{% if saved and saved.schedule and emp in saved.schedule %}{{ saved.schedule[emp][day].end | to24h }}{% endif %}"
-                              onchange="recalcRow('{{ emp }}'); scheduleAutosave();"></select>
+                              data-value="{% if emp_saved %}{{ emp_saved[day].end | to24h }}{% endif %}"
+                              onchange="recalcRow(this.dataset.emp); scheduleAutosave();"></select>
                     </div>
-                    <div class="role-area flex flex-wrap gap-1 items-center" id="roles-{{ emp | replace(' ', '_') }}-{{ day }}">
-                      {% if saved and saved.schedule and emp in saved.schedule %}
-                        {% for r in saved.schedule[emp][day].role %}
-                          {% if r and r != 'PTO' %}
-                          <span class="role-pill" data-role="{{ r }}">
-                            {{ r }}
-                            <button type="button" onclick="removeRole(this)" title="Remove">x</button>
-                          </span>
-                          {% endif %}
-                        {% endfor %}
-                      {% endif %}
-                      <input type="text" placeholder="+ Role"
-                             class="role-input text-xs border-0 outline-none bg-transparent text-slate-500 dark:text-neutral-400 placeholder-slate-300 dark:placeholder-neutral-600 w-16 min-w-0"
+                    <div class="role-area" id="roles-{{ eid }}-{{ day }}">
+                      <input type="text" placeholder="Add role" aria-label="Add a role for {{ emp }} on {{ day }}"
+                             class="role-input" autocomplete="off"
                              data-emp="{{ emp }}" data-day="{{ day }}"
                              onkeydown="handleRoleInput(event, this)"/>
                     </div>
                   </div>
+                  <p class="pto-note">Day off</p>
+                  <label class="pto-toggle">
+                    <input type="checkbox" class="pto-checkbox"
+                           data-emp="{{ emp }}" data-day="{{ day }}"
+                           {% if is_pto %}checked{% endif %}
+                           onchange="togglePTO(this)"/>
+                    PTO
+                  </label>
                 </div>
               </td>
               {% endfor %}
-              <td class="px-4 py-3 text-center align-top">
-                <span class="hours-badge font-semibold text-slate-700 dark:text-neutral-200" id="hours-{{ emp | replace(' ', '_') }}">-</span>
-                <span class="text-xs text-slate-400 dark:text-neutral-500"> hrs</span>
+              <td class="hours-cell">
+                <span class="hours-badge" id="hours-{{ eid }}">–</span>
+                <span class="hours-unit">hrs</span>
               </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="{{ days | length + 2 }}" class="px-5 py-12 text-center">
-                <p class="text-sm text-slate-400 dark:text-neutral-500">No team members yet.</p>
-                <p class="text-xs text-slate-400 dark:text-neutral-600 mt-1">
-                  <a href="/employees" class="text-blue-600 dark:text-blue-400 hover:underline">Add your team</a> to start building a schedule.
-                </p>
+              <td colspan="{{ days | length + 2 }}" class="empty-roster">
+                <p>Nobody's on the team yet.</p>
+                <p><a href="{{ url_for('manage_employees') }}">Add your team</a> to start building a schedule.</p>
               </td>
             </tr>
             {% endfor %}
@@ -343,59 +294,13 @@
       </div>
     </div>
 
-    <p class="text-center text-xs text-slate-400 dark:text-neutral-500 mt-5">
-      Press Enter after typing a role to add it · Check PTO to mark a full day off · Use the + tab to add another week, then Export bundles every open week
+    <p class="footnote">
+      Type a role and press Enter, or pick one from the list. Tick PTO for a full day off.
+      “Add week” opens another week beside this one, and Export includes every open week.
     </p>
   </main>
 
-  <div id="settings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-black/40 dark:bg-black/60" onclick="closeSettings()"></div>
-    <div class="relative bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 shadow-xl p-6 w-full max-w-sm">
-      <div class="flex items-center justify-between mb-1">
-        <h2 class="text-base font-semibold text-slate-800 dark:text-white">Side Banners</h2>
-        <button onclick="closeSettings()"
-                class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-neutral-300 hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-      </div>
-      <p class="text-xs text-slate-400 dark:text-neutral-500 mb-4">Shown flanking the page on wide screens only — hidden once the window is too narrow to fit them.</p>
-      <div id="bg-preview"
-           class="w-full h-28 rounded-lg border border-slate-200 dark:border-neutral-700 mb-4 bg-cover bg-center flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-neutral-900">
-        <span id="bg-preview-label" class="text-sm text-slate-400 dark:text-neutral-500">No image set</span>
-      </div>
-      <label class="flex items-center justify-center gap-2 w-full px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-neutral-300 border border-dashed border-slate-300 dark:border-neutral-600 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-700 cursor-pointer transition-colors mb-4">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-        </svg>
-        Choose Image
-        <input type="file" id="bg-file-input" accept="image/*" onchange="handleBgUpload(this)" class="hidden"/>
-      </label>
-      <div class="mb-4">
-        <div class="flex justify-between text-xs font-medium text-slate-600 dark:text-neutral-400 mb-1.5">
-          <span>Opacity</span><span id="opacity-val">25%</span>
-        </div>
-        <input type="range" id="bg-opacity" min="0" max="100" value="25"
-               oninput="updateBgOpacity(this.value)" class="w-full accent-blue-600"/>
-      </div>
-      <div class="mb-5">
-        <div class="flex justify-between text-xs font-medium text-slate-600 dark:text-neutral-400 mb-1.5">
-          <span>Blur</span><span id="blur-val">0px</span>
-        </div>
-        <input type="range" id="bg-blur" min="0" max="20" value="0"
-               oninput="updateBgBlur(this.value)" class="w-full accent-blue-600"/>
-      </div>
-      <button onclick="removeBg()" id="remove-bg-btn"
-              class="hidden w-full px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-        Remove Banners
-      </button>
-    </div>
-  </div>
-
-  <div id="suggestion-dropdown"
-       class="hidden absolute z-50 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 min-w-28 max-h-48 overflow-y-auto">
-  </div>
+  <div id="suggestion-dropdown" class="hidden" role="listbox"></div>
 
   {% include "_confirm_modal.html" %}
 
@@ -456,7 +361,7 @@
       if (matches.length === 0) { dropdown.classList.add('hidden'); return; }
       activeInput = input;
       dropdown.innerHTML = matches.map(r =>
-        `<div class="suggestion-item px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 dark:hover:bg-neutral-700 text-slate-700 dark:text-neutral-200 whitespace-nowrap" data-value="${r}">${r}</div>`
+        `<div class="suggestion-item" role="option" data-color="${roleColorIndex(r)}" data-value="${escapeHtml(r)}"><i></i>${escapeHtml(r)}</div>`
       ).join('');
       positionDropdown(input);
       dropdown.classList.remove('hidden');
@@ -468,6 +373,10 @@
     }
 
     function empId(name) { return name.replace(/ /g, '_'); }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
 
     function to24h(val) {
       if (!val) return '';
@@ -509,10 +418,11 @@
         if (startEl && endEl) total += calcHours(startEl.value, endEl.value);
       });
       const badge = document.getElementById('hours-' + id);
-      if (badge) badge.textContent = total > 0 ? total.toFixed(1) : '-';
+      if (badge) badge.textContent = total > 0 ? total.toFixed(1) : '–';
     }
 
     function handleRoleInput(e, input) {
+      if (e.key === 'Escape') { hideDropdown(); return; }
       if (e.key !== 'Enter') return;
       e.preventDefault();
       const val = input.value.trim();
@@ -533,6 +443,9 @@
       }
       addRolePill(emp, day, role);
       if (input) input.value = '';
+      // Left open, the list sits over the PTO box just below and swallows
+      // the next click meant for it.
+      hideDropdown();
     }
 
     function registerNewRole(role) {
@@ -550,7 +463,8 @@
       const pill = document.createElement('span');
       pill.className = 'role-pill';
       pill.dataset.role = role;
-      pill.innerHTML = role + ' <button type="button" onclick="removeRole(this)" title="Remove">x</button>';
+      pill.dataset.color = roleColorIndex(role);
+      pill.innerHTML = escapeHtml(role) + '<button type="button" onclick="removeRole(this)" title="Remove ' + escapeHtml(role) + '" aria-label="Remove ' + escapeHtml(role) + '">×</button>';
       area.insertBefore(pill, input);
       scheduleAutosave();
     }
@@ -723,8 +637,8 @@
       const addBtn = document.createElement('button');
       addBtn.type = 'button';
       addBtn.className = 'week-tab-add';
-      addBtn.title = 'Add the next week as a new tab';
-      addBtn.textContent = '+';
+      addBtn.title = 'Open the following week as a new tab';
+      addBtn.innerHTML = '<span aria-hidden="true">+</span> Add week';
       addBtn.onclick = addWeekTab;
       bar.appendChild(addBtn);
     }
@@ -870,18 +784,27 @@
     function updateDateHeaders(val) {
       if (!val) return;
       const d = new Date(val + 'T00:00:00');
-      const opts = { month: 'short', day: 'numeric' };
-      const label = document.getElementById('week-label');
-      const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
-      days.forEach((day, i) => {
+      DAYS.forEach((day, i) => {
         const date = new Date(d);
         date.setDate(d.getDate() + i);
         const th = document.getElementById('header-' + day);
-        if (th) th.innerHTML = '<div>' + day + '</div><div class="text-blue-300 font-normal normal-case text-xs mt-0.5">' + date.toLocaleDateString('en-US', opts) + '</div>';
+        if (!th) return;
+        const showMonth = i === 0 || date.getDate() === 1;
+        th.innerHTML = '<div class="dh"><span class="dh-num">' + date.getDate() + '</span><span>'
+          + '<span class="dh-day">' + day.slice(0, 3) + '</span>'
+          + (showMonth ? ' <span class="dh-mon">' + date.toLocaleDateString('en-US', { month: 'short' }) + '</span>' : '')
+          + '</span></div>';
+        th.setAttribute('aria-label', date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }));
       });
-      const endDate = new Date(d);
-      endDate.setDate(d.getDate() + 4);
-      if (label) label.textContent = d.toLocaleDateString('en-US', { month:'long', day:'numeric' }) + ' - ' + endDate.toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+      const end = new Date(d);
+      end.setDate(d.getDate() + 4);
+      const sameMonth = end.getMonth() === d.getMonth();
+      const label = document.getElementById('week-label');
+      if (label) label.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' – '
+        + (sameMonth ? end.getDate() : end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      const year = document.getElementById('week-year');
+      if (year) year.textContent = end.getFullYear();
+      document.title = (label ? label.textContent : 'Schedule') + ' · ShiftDesk';
     }
 
     // Prefers the tab immediately before this one in the strip (the natural
@@ -958,25 +881,6 @@
       formEl.submit();
     }
 
-    function applyBackground() {
-      const img     = localStorage.getItem('bgImage');
-      const opacity = (localStorage.getItem('bgOpacity') || 25) / 100;
-      const blur    = parseFloat(localStorage.getItem('bgBlur') || 0);
-      const layers  = [document.getElementById('bg-layer-left'), document.getElementById('bg-layer-right')];
-      layers.forEach(layer => {
-        if (!layer) return;
-        if (img) {
-          layer.style.backgroundImage = `url('${img}')`;
-          layer.style.opacity   = opacity;
-          layer.style.filter    = blur > 0 ? `blur(${blur}px)` : 'none';
-          layer.style.transform = blur > 0 ? 'scale(1.05)' : 'none';
-        } else {
-          layer.style.backgroundImage = 'none';
-          layer.style.opacity = 0;
-        }
-      });
-    }
-
     function toggleMenu(id, event) {
       if (event) event.stopPropagation();
       document.querySelectorAll('.dropdown-menu').forEach(m => {
@@ -989,91 +893,7 @@
       document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.add('hidden'));
     }
 
-    function openSettings() {
-      document.getElementById('settings-modal').classList.remove('hidden');
-      updateSettingsUI();
-    }
-
-    function closeSettings() {
-      document.getElementById('settings-modal').classList.add('hidden');
-    }
-
-    function updateSettingsUI() {
-      const img     = localStorage.getItem('bgImage');
-      const opacity = localStorage.getItem('bgOpacity') || 25;
-      const blur    = localStorage.getItem('bgBlur')    || 0;
-      const preview   = document.getElementById('bg-preview');
-      const label     = document.getElementById('bg-preview-label');
-      const removeBtn = document.getElementById('remove-bg-btn');
-      if (img) {
-        preview.style.backgroundImage = `url('${img}')`;
-        label.classList.add('hidden');
-        removeBtn.classList.remove('hidden');
-      } else {
-        preview.style.backgroundImage = '';
-        label.classList.remove('hidden');
-        removeBtn.classList.add('hidden');
-      }
-      document.getElementById('bg-opacity').value       = opacity;
-      document.getElementById('opacity-val').textContent = opacity + '%';
-      document.getElementById('bg-blur').value          = blur;
-      document.getElementById('blur-val').textContent   = blur + 'px';
-    }
-
-    function handleBgUpload(input) {
-      const file = input.files[0];
-      if (!file) return;
-      if (file.size > 5 * 1024 * 1024) {
-        showNotice('Image too large (max 5 MB). Please choose a smaller file.');
-        input.value = '';
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = e => {
-        try {
-          localStorage.setItem('bgImage', e.target.result);
-        } catch {
-          showNotice('Could not save image — browser storage may be full. Try a smaller image.');
-          return;
-        }
-        applyBackground();
-        updateSettingsUI();
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function updateBgOpacity(val) {
-      localStorage.setItem('bgOpacity', val);
-      document.getElementById('opacity-val').textContent = val + '%';
-      applyBackground();
-    }
-
-    function updateBgBlur(val) {
-      localStorage.setItem('bgBlur', val);
-      document.getElementById('blur-val').textContent = val + 'px';
-      applyBackground();
-    }
-
-    function removeBg() {
-      localStorage.removeItem('bgImage');
-      document.getElementById('bg-file-input').value = '';
-      applyBackground();
-      updateSettingsUI();
-    }
-
-    function toggleDark() {
-      const isDark = document.documentElement.classList.toggle('dark');
-      localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      document.getElementById('icon-sun').classList.toggle('hidden', !isDark);
-      document.getElementById('icon-moon').classList.toggle('hidden', isDark);
-    }
-
     document.addEventListener('DOMContentLoaded', () => {
-      const isDark = document.documentElement.classList.contains('dark');
-      document.getElementById('icon-sun').classList.toggle('hidden', !isDark);
-      document.getElementById('icon-moon').classList.toggle('hidden', isDark);
-
-      applyBackground();
       buildTimeSelects();
       // Tabs (restored from localStorage, or seeded from the server-rendered
       // week) own populating the grid and recalculating totals — this must

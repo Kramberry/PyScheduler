@@ -82,12 +82,14 @@
     {% endif %}
   </main>
 
+  {% include "_confirm_modal.html" %}
+
   <script>
     document.getElementById('multi-export-form')?.addEventListener('submit', e => {
       const checked = e.target.querySelectorAll('input[name="week_starts"]:checked');
       if (checked.length === 0) {
         e.preventDefault();
-        alert('Select at least one week first.');
+        showNotice('Select at least one week first.');
       }
     });
   </script>

@@ -1,0 +1,79 @@
+{# In-page replacement for the browser's confirm()/alert(). Browsers can
+   silently suppress native dialogs (Chrome/Edge's "Prevent this page from
+   creating additional dialogs" checkbox), and a suppressed confirm() just
+   returns false — so closing tabs, copying a week, adding a new role, etc.
+   would quietly do nothing. A page-drawn modal can't be blocked that way.
+
+   JS:    await askConfirm(message, {okLabel, danger})  -> true/false
+          await showNotice(message)
+   Forms: <form data-confirm="Message" [data-confirm-ok="Remove"] [data-confirm-danger]> #}
+<div id="confirm-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4"
+     role="dialog" aria-modal="true" aria-labelledby="confirm-modal-message">
+  <div class="absolute inset-0 bg-black/40 dark:bg-black/60" data-confirm-cancel></div>
+  <div class="relative bg-white dark:bg-neutral-800 rounded-xl border border-slate-200 dark:border-neutral-700 shadow-xl p-6 w-full max-w-sm">
+    <p id="confirm-modal-message" class="text-sm text-slate-700 dark:text-neutral-200 leading-relaxed whitespace-pre-line"></p>
+    <div class="flex justify-end gap-2 mt-5">
+      <button type="button" id="confirm-modal-cancel" data-confirm-cancel
+              class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-neutral-300 border border-slate-300 dark:border-neutral-600 rounded-lg hover:bg-slate-50 dark:hover:bg-neutral-700 transition-colors">
+        Cancel
+      </button>
+      <button type="button" id="confirm-modal-ok"
+              class="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors">
+        OK
+      </button>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    const modal   = document.getElementById('confirm-modal');
+    const msgEl   = document.getElementById('confirm-modal-message');
+    const okBtn   = document.getElementById('confirm-modal-ok');
+    const cancelBtn = document.getElementById('confirm-modal-cancel');
+    const OK_CLASSES = { normal: ['bg-blue-600', 'hover:bg-blue-700'], danger: ['bg-red-600', 'hover:bg-red-700'] };
+    let settle = null;
+
+    function close(result) {
+      if (!settle) return;
+      modal.classList.add('hidden');
+      const done = settle;
+      settle = null;
+      done(result);
+    }
+
+    function open(message, { okLabel = 'OK', danger = false, showCancel = true } = {}) {
+      close(false);  // a newer prompt replaces any one still open
+      msgEl.textContent = message;
+      okBtn.textContent = okLabel;
+      okBtn.classList.remove(...OK_CLASSES.normal, ...OK_CLASSES.danger);
+      okBtn.classList.add(...(danger ? OK_CLASSES.danger : OK_CLASSES.normal));
+      cancelBtn.classList.toggle('hidden', !showCancel);
+      modal.classList.remove('hidden');
+      okBtn.focus();
+      return new Promise(resolve => { settle = resolve; });
+    }
+
+    window.askConfirm = (message, opts) => open(message, opts);
+    window.showNotice = (message) => open(message, { showCancel: false });
+
+    okBtn.addEventListener('click', () => close(true));
+    modal.querySelectorAll('[data-confirm-cancel]').forEach(el => el.addEventListener('click', () => close(false)));
+    document.addEventListener('keydown', e => {
+      if (!settle) return;
+      if (e.key === 'Escape') { e.preventDefault(); close(false); }
+    });
+
+    // Plain HTML forms opt in with data-confirm; on OK the form is submitted
+    // directly, which skips this listener the second time around.
+    document.addEventListener('submit', async e => {
+      const form = e.target;
+      if (!form.dataset || !form.dataset.confirm) return;
+      e.preventDefault();
+      const ok = await askConfirm(form.dataset.confirm, {
+        okLabel: form.dataset.confirmOk || 'OK',
+        danger: 'confirmDanger' in form.dataset,
+      });
+      if (ok) form.submit();
+    });
+  })();
+</script>

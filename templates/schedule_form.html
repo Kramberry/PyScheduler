@@ -397,6 +397,8 @@
        class="hidden absolute z-50 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 min-w-28 max-h-48 overflow-y-auto">
   </div>
 
+  {% include "_confirm_modal.html" %}
+
   <script>
     const EMPLOYEES = {{ employees | tojson }};
     const DAYS      = {{ days | tojson }};
@@ -522,10 +524,10 @@
     // + Enter for a brand-new name asks first, so a typo never gets baked in
     // silently. Picking an existing role (autocomplete click, Copy Last Week)
     // skips the prompt since it's already known.
-    function tryAddRole(emp, day, role, input) {
+    async function tryAddRole(emp, day, role, input) {
       const isKnown = [...knownRoles].some(r => r.toLowerCase() === role.toLowerCase());
       if (!isKnown) {
-        if (!confirm('"' + role + '" isn\'t an existing role yet. Add it as a new shift role?')) return;
+        if (!await askConfirm('"' + role + '" isn\'t an existing role yet. Add it as a new shift role?', { okLabel: 'Add Role' })) return;
         knownRoles.add(role);
         registerNewRole(role);
       }
@@ -750,16 +752,17 @@
       persistTabs();
     }
 
-    function closeWeekTab(weekStart) {
+    async function closeWeekTab(weekStart) {
       if (weekTabs.length <= 1) {
-        alert('At least one week tab has to stay open.');
+        showNotice('At least one week tab has to stay open.');
         return;
       }
       if (weekStart === activeWeek) syncActiveWeekFromDOM();
       if (weekHasData(weekStart) &&
-          !confirm('Close the ' + shortWeekLabel(weekStart) + ' week tab? Anything on it that you haven\'t exported will be lost.')) {
+          !await askConfirm('Close the ' + shortWeekLabel(weekStart) + ' week tab? Anything on it that you haven\'t exported will be lost.', { okLabel: 'Close Tab', danger: true })) {
         return;
       }
+      if (!weekTabs.includes(weekStart)) return;  // already closed while the prompt was open
       const idx = weekTabs.indexOf(weekStart);
       weekTabs.splice(idx, 1);
       delete weekData[weekStart];
@@ -783,11 +786,11 @@
       return year >= 2000 && year <= 2100;
     }
 
-    function renameActiveWeek(newDate) {
+    async function renameActiveWeek(newDate) {
       if (!isUsableWeekDate(newDate) || newDate === activeWeek) return;
       syncActiveWeekFromDOM();
       if (weekTabs.includes(newDate)) {
-        if (confirm('A tab for ' + shortWeekLabel(newDate) + ' is already open. Switch to it instead?')) {
+        if (await askConfirm('A tab for ' + shortWeekLabel(newDate) + ' is already open. Switch to it instead?', { okLabel: 'Switch' })) {
           switchToWeek(newDate);
         } else {
           document.getElementById('week_start_display').value = activeWeek;
@@ -884,7 +887,7 @@
     // Prefers the tab immediately before this one in the strip (the natural
     // "previous week" when building out several weeks in a row); falls back
     // to the server's last saved week if this is the only/first tab open.
-    function copyLastWeek() {
+    async function copyLastWeek() {
       const idx = weekTabs.indexOf(activeWeek);
       const prevWeek = idx > 0 ? weekTabs[idx - 1] : null;
       let source, label;
@@ -895,18 +898,22 @@
         source = parseServerScheduleToWeekData(SAVED.schedule);
         label = 'last saved week';
       } else {
-        alert('No previous week found to copy from.');
+        showNotice('No previous week found to copy from.');
         return;
       }
-      if (!confirm('Copy shifts from the ' + label + ' into ' + shortWeekLabel(activeWeek) + '? This overwrites unsaved changes on this tab.')) return;
+      const target = activeWeek;
+      if (!await askConfirm('Copy shifts from the ' + label + ' into ' + shortWeekLabel(target) + '? This overwrites unsaved changes on this tab.', { okLabel: 'Copy' })) return;
+      if (activeWeek !== target) return;  // switched tabs while the prompt was open
 
       weekData[activeWeek] = JSON.parse(JSON.stringify(source));
       renderActiveWeekIntoDOM();
       persistTabs();
     }
 
-    function clearAll() {
-      if (!confirm('Clear all shifts for the ' + shortWeekLabel(activeWeek) + ' week?')) return;
+    async function clearAll() {
+      const target = activeWeek;
+      if (!await askConfirm('Clear all shifts for the ' + shortWeekLabel(target) + ' week?', { okLabel: 'Clear All', danger: true })) return;
+      if (activeWeek !== target) return;  // switched tabs while the prompt was open
       document.querySelectorAll('.start-input, .end-input').forEach(i => i.value = '');
       document.querySelectorAll('.pto-checkbox').forEach(c => { c.checked = false; });
       document.querySelectorAll('.shift-wrapper').forEach(d => d.style.display = '');
@@ -1017,7 +1024,7 @@
       const file = input.files[0];
       if (!file) return;
       if (file.size > 5 * 1024 * 1024) {
-        alert('Image too large (max 5 MB). Please choose a smaller file.');
+        showNotice('Image too large (max 5 MB). Please choose a smaller file.');
         input.value = '';
         return;
       }
@@ -1026,7 +1033,7 @@
         try {
           localStorage.setItem('bgImage', e.target.result);
         } catch {
-          alert('Could not save image — browser storage may be full. Try a smaller image.');
+          showNotice('Could not save image — browser storage may be full. Try a smaller image.');
           return;
         }
         applyBackground();

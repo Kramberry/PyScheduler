@@ -2,10 +2,12 @@ from flask import Flask, render_template, request, send_file, redirect, url_for,
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
-from reportlab.lib.pagesizes import LETTER
+from reportlab.lib.pagesizes import LETTER, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from reportlab.pdfbase.pdfmetrics import stringWidth
+from xml.sax.saxutils import escape as xml_escape
 import json
 import os
 import sys
@@ -46,7 +48,16 @@ def to_24h(time_str):
 app.jinja_env.filters['to24h'] = to_24h
 
 
-DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+# Every day a week can have, in order from the week's start (a Monday).
+# Which of them actually appear is a workplace setting: see work_days().
+WEEK_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+def day_offset(day):
+    """Days after the week's Monday that `day` falls on. Dates come from
+    this, not from a day's position in the work-day list, so a shop that
+    works Tue-Sat still gets Tuesday's date under Tuesday."""
+    return WEEK_DAYS.index(day)
 
 
 # ------------------------------------
@@ -126,7 +137,17 @@ DEFAULT_SETTINGS = {
     "break_minutes": 0,           # how long the break is
     "break_paid": True,           # paid breaks stay in the hours
     "break_min_shift_hours": 6,   # only shifts at least this long get one
+    "work_days": WEEK_DAYS[:5],   # Monday-Friday; weekends are opt-in
 }
+
+
+def work_days(settings):
+    """The days this shop schedules, always in week order and never empty.
+    Anything unexpected in settings.json (a misspelt day, an empty list)
+    falls back to Monday-Friday rather than leaving a schedule with no days."""
+    chosen = settings.get("work_days") or []
+    days = [d for d in WEEK_DAYS if d in chosen]
+    return days or WEEK_DAYS[:5]
 
 
 def break_label(minutes, adjective=False):
@@ -221,6 +242,22 @@ def load_history():
 def save_history(history_dict):
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(history_dict, f, indent=2)
+
+
+def keep_hidden_days(week_start, schedule_dict):
+    """Fills in, from the archive, any day a saved week had that this new
+    copy of it is missing. A schedule sent from the page only has the days
+    currently shown, so without this, unticking Saturday and then saving
+    would wipe that week's Saturday shifts instead of just hiding them.
+    Ticking Saturday again brings them back."""
+    if not week_start:
+        return
+    archived = load_history().get(week_start, {})
+    for emp, cells in schedule_dict.items():
+        if not isinstance(cells, dict):
+            continue
+        for day, cell in archived.get(emp, {}).items():
+            cells.setdefault(day, cell)
 
 
 def archive_week(week_start, schedule_dict):
@@ -319,16 +356,17 @@ def calculate_hours(cell_value: str) -> float:
 # ------------------------------------
 def build_week_rows(employees, schedule_dict, settings):
     """Returns [(employee, per_day, total_hours), ...] for employees who have
-    at least one day of data this week. per_day[i] describes DAYS[i] as
-    {'roles': [...], 'start': str, 'end': str, 'pto': bool}.
-    total_hours is paid time, with the unpaid break rule from `settings`."""
+    at least one day of data this week. per_day has one entry per work day
+    (see work_days()) as {'roles': [...], 'start': str, 'end': str, 'pto': bool}.
+    total_hours is paid time, with the unpaid break rule from `settings`.
+    Days the shop doesn't work aren't shown, so they don't count either."""
     rows = []
     for emp in employees:
         day_data = schedule_dict.get(emp, {}) if schedule_dict else {}
         per_day = []
         total = 0.0
         has_data = False
-        for day in DAYS:
+        for day in work_days(settings):
             cell = day_data.get(day, {}) if day_data else {}
             roles = [r for r in (cell.get("role") or []) if r and r.strip()]
             start = (cell.get("start") or "").strip()
@@ -359,8 +397,8 @@ def cell_excel_text(day):
 
 
 # Each day keeps its own colour wherever it lands, keyed by name rather than
-# column number, so adding Saturday/Sunday to DAYS can't shift Friday's
-# colour onto the wrong column. "header" is the column heading, "light" and
+# column number, so switching weekends on can't shift Friday's colour onto
+# the wrong column. "header" is the column heading, "light" and
 # "band" alternate down the rows.
 DAY_COLORS = {
     "Monday":    {"header": "2563EB", "light": "EFF6FF", "band": "DBEAFE"},  # blue
@@ -385,15 +423,16 @@ SHEET_FONT = "Arial"
 FIRST_DAY_COL = 2  # column A is the name; days start at B
 
 
-def write_week_sheet(ws, date_range_text, rows, note="", start_date=None):
+def write_week_sheet(ws, date_range_text, rows, days, note="", start_date=None):
     """Fills a freshly created worksheet with one week's schedule, styled to
     match the app's export look. Used for both single- and multi-week Excel.
+    `days` is the shop's work days, matching each row's per_day entries.
     `note` is an optional line printed under the table (e.g. the break rule).
     `start_date` (the week's Monday) adds each day's date under its name.
 
-    Column positions are worked out from DAYS rather than typed in, so the
-    sheet stays correct if weekend days are ever added to DAYS."""
-    last_day_col = FIRST_DAY_COL + len(DAYS) - 1
+    Column positions are worked out from `days` rather than typed in, so the
+    sheet stays correct whether the shop works five days or seven."""
+    last_day_col = FIRST_DAY_COL + len(days) - 1
     total_col = last_day_col + 1
     num_cols = total_col
     first_data_row = 3
@@ -418,10 +457,10 @@ def write_week_sheet(ws, date_range_text, rows, note="", start_date=None):
 
     # Row 2: headings. Each day gets its own colour, and its date when known.
     headings = [("Team Member", TITLE_COLOR)]
-    for i, day in enumerate(DAYS):
+    for day in days:
         text = day
         if start_date:
-            text += "\n" + (start_date + timedelta(days=i)).strftime("%b %d").replace(" 0", " ")
+            text += "\n" + (start_date + timedelta(days=day_offset(day))).strftime("%b %d").replace(" 0", " ")
         headings.append((text, DAY_COLORS[day]["header"]))
     headings.append(("Total Hours", TOTAL_HEADER_COLOR))
     for col_idx, (text, color) in enumerate(headings, start=1):
@@ -441,7 +480,7 @@ def write_week_sheet(ws, date_range_text, rows, note="", start_date=None):
         if is_band:
             name.fill = fill("F8FAFC")
 
-        for col_idx, (day_name, day) in enumerate(zip(DAYS, per_day), start=FIRST_DAY_COL):
+        for col_idx, (day_name, day) in enumerate(zip(days, per_day), start=FIRST_DAY_COL):
             text = cell_excel_text(day)
             cell = ws.cell(row=row_idx, column=col_idx, value=text or None)
             day_colors = DAY_COLORS[day_name]
@@ -535,16 +574,21 @@ def safe_sheet_title(existing_titles, start_date):
     return title
 
 
-def week_date_range_text(week_start):
+def week_date_range_text(week_start, days):
+    """Returns (week's Monday, last work day's date, "first – last" text).
+    The text runs from the first to the last day the shop works, so a
+    Monday-Friday week reads Oct 05 - Oct 09 and a 7-day week Oct 05 - Oct 11."""
     start_date = datetime.strptime(week_start, "%Y-%m-%d")
-    end_date = start_date + timedelta(days=len(DAYS) - 1)
-    return start_date, end_date, f"{start_date.strftime('%b %d, %Y')} - {end_date.strftime('%b %d, %Y')}"
+    first_date = start_date + timedelta(days=day_offset(days[0]))
+    end_date = start_date + timedelta(days=day_offset(days[-1]))
+    return start_date, end_date, f"{first_date.strftime('%b %d, %Y')} - {end_date.strftime('%b %d, %Y')}"
 
 
 def cell_pdf_paragraph(day, cell_style, pto_style):
     if day["pto"]:
         return Paragraph("PTO", pto_style)
-    role_text = ", ".join(r for r in day["roles"] if r != "PTO")
+    # Paragraph text is read as markup, so a role like "R&D" must be escaped.
+    role_text = xml_escape(", ".join(r for r in day["roles"] if r != "PTO"))
     if day["start"] and day["end"]:
         text = f"{day['start']} - {day['end']}"
         if role_text:
@@ -555,23 +599,51 @@ def cell_pdf_paragraph(day, cell_style, pto_style):
     return ""
 
 
-def build_pdf_week_elements(date_range_text, rows, note=""):
+PDF_MARGIN = 36       # half an inch on every side
+PDF_PAD = 4           # cell padding, left and right
+PDF_NAME_W = 72       # names wrap if longer
+PDF_CELL_FONT = ("Helvetica", 8)
+PDF_HEAD_FONT = ("Helvetica-Bold", 9)
+
+
+def pdf_page_layout(days):
+    """Page size and column widths that fit `days` columns.
+
+    Widths come from measuring the widest text each column has to hold,
+    not from guessed numbers: a day must fit a whole shift time on one
+    line, and the last column must fit its "Total Hours" heading. The page
+    stays portrait when that fits and turns landscape when it doesn't
+    (in practice: up to 4 days portrait, 5-7 days landscape)."""
+    day_min = stringWidth("08:00 AM - 06:00 PM", *PDF_CELL_FONT) + 2 * PDF_PAD
+    total_w = stringWidth("Total Hours", *PDF_HEAD_FONT) + 2 * PDF_PAD + 2
+    for page in (LETTER, landscape(LETTER)):
+        day_w = (page[0] - 2 * PDF_MARGIN - PDF_NAME_W - total_w) / len(days)
+        if day_w >= day_min:
+            break
+    return page, [PDF_NAME_W] + [day_w] * len(days) + [total_w]
+
+
+def build_pdf_week_elements(date_range_text, rows, days, note=""):
     styles = getSampleStyleSheet()
     elements = [Paragraph("<b>Weekly Schedule</b>", styles["Title"])]
     if date_range_text:
         elements.append(Paragraph(date_range_text, styles["Normal"]))
     elements.append(Spacer(1, 16))
 
-    cell_style = ParagraphStyle('cell', fontSize=8, leading=11)
+    cell_style = ParagraphStyle('cell', fontName=PDF_CELL_FONT[0], fontSize=PDF_CELL_FONT[1], leading=11)
     pto_style = ParagraphStyle('pto', fontSize=8, leading=11,
                                 textColor=colors.HexColor('#92400E'), fontName='Helvetica-Bold')
 
-    table_data = [["Employee"] + DAYS + ["Total Hours"]]
+    name_style = ParagraphStyle('name', fontName=PDF_HEAD_FONT[0], fontSize=PDF_HEAD_FONT[1], leading=11)
+
+    table_data = [["Employee"] + days + ["Total Hours"]]
     for emp, per_day, total in rows:
-        row = [emp] + [cell_pdf_paragraph(d, cell_style, pto_style) for d in per_day] + [f"{total:.1f}"]
+        row = ([Paragraph(xml_escape(emp), name_style)]
+               + [cell_pdf_paragraph(d, cell_style, pto_style) for d in per_day]
+               + [f"{total:.1f}"])
         table_data.append(row)
 
-    col_widths = [80] + [81] * len(DAYS) + [55]
+    _page, col_widths = pdf_page_layout(days)
     table = Table(table_data, colWidths=col_widths, repeatRows=1)
     table.setStyle(TableStyle([
         ("GRID",       (0, 0), (-1, -1), 1, colors.black),
@@ -579,8 +651,8 @@ def build_pdf_week_elements(date_range_text, rows, note=""):
         ("FONT",       (0, 0), (-1,  0), "Helvetica-Bold"),
         ("FONT",       (0, 1), ( 0, -1), "Helvetica-Bold"),
         ("VALIGN",     (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 6),
+        ("LEFTPADDING",   (0, 0), (-1, -1), PDF_PAD),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), PDF_PAD),
         ("TOPPADDING",    (0, 0), (-1, -1), 8),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
         ("FONTSIZE",   (0, 0), (-1, -1), 9),
@@ -601,13 +673,15 @@ def build_pdf_week_elements(date_range_text, rows, note=""):
 def index():
     employees = load_employees()
     saved = load_last_schedule()
+    settings = load_settings()
     return render_template(
         "schedule_form.html",
         employees=employees,
-        days=DAYS,
+        days=work_days(settings),
+        week_days=WEEK_DAYS,
         saved=saved,
         roles=load_roles(),
-        settings=load_settings(),
+        settings=settings,
     )
 
 
@@ -634,6 +708,8 @@ def role_color_index(role, role_order):
 def print_preview():
     employees = load_employees()
     week_start = request.form.get("week_start")
+    settings = load_settings()
+    days = work_days(settings)
 
     saved_data = {
         "week_start": week_start,
@@ -641,12 +717,13 @@ def print_preview():
     }
     for emp in employees:
         saved_data["schedule"][emp] = {}
-        for day in DAYS:
+        for day in days:
             saved_data["schedule"][emp][day] = {
                 "role": request.form.getlist(f"{emp}_{day}_role"),
                 "start": request.form.get(f"{emp}_{day}_start", ""),
                 "end": request.form.get(f"{emp}_{day}_end", "")
             }
+    keep_hidden_days(week_start, saved_data["schedule"])
     save_last_schedule(saved_data)
     register_roles(saved_data["schedule"])
     archive_week(week_start, saved_data["schedule"])
@@ -654,30 +731,30 @@ def print_preview():
     # Totals come from the same build_week_rows() the Excel and PDF exports
     # use, instead of a hand-copied loop. A copy is what lets the screen and
     # the paper drift apart the next time the hours rule changes.
-    settings = load_settings()
     rows = build_week_rows(employees, saved_data["schedule"], settings)
     totals = {emp: total for emp, _per_day, total in rows}
 
     role_order = [str(r).strip().lower() for r in load_roles()]
     role_colors = {}
     for emp in employees:
-        for day in DAYS:
+        for day in days:
             for role in saved_data["schedule"][emp][day]["role"]:
                 if role and role != "PTO" and role not in role_colors:
                     role_colors[role] = ROLE_INKS[role_color_index(role, role_order)]
 
     try:
-        start_date, end_date, _ = week_date_range_text(week_start)
-        end_text = str(end_date.day) if end_date.month == start_date.month else f"{end_date.strftime('%b')} {end_date.day}"
-        week_label = f"{start_date.strftime('%b')} {start_date.day} – {end_text}, {end_date.year}"
-        day_dates = [(start_date + timedelta(days=i)).day for i in range(len(DAYS))]
+        week_monday, end_date, _ = week_date_range_text(week_start, days)
+        first_date = week_monday + timedelta(days=day_offset(days[0]))
+        end_text = str(end_date.day) if end_date.month == first_date.month else f"{end_date.strftime('%b')} {end_date.day}"
+        week_label = f"{first_date.strftime('%b')} {first_date.day} – {end_text}, {end_date.year}"
+        day_dates = [(week_monday + timedelta(days=day_offset(day))).day for day in days]
     except (TypeError, ValueError):
         week_label, day_dates = "", []
 
     return render_template(
         "print_preview.html",
         employees=employees,
-        days=DAYS,
+        days=days,
         saved=saved_data,
         totals=totals,
         role_colors=role_colors,
@@ -693,10 +770,11 @@ def print_preview():
 @app.route("/export-multi", methods=["GET"])
 def export_multi_picker():
     history = load_history()
+    days = work_days(load_settings())
     weeks = []
     for week_start in history.keys():
         try:
-            _start, _end, label = week_date_range_text(week_start)
+            _start, _end, label = week_date_range_text(week_start, days)
         except ValueError:
             continue
         weeks.append({"week_start": week_start, "label": label})
@@ -723,6 +801,7 @@ def resolve_export_weeks(weeks_json_str, week_starts_list):
         schedules = {}
         for week_start in week_starts:
             schedule = payload[week_start]
+            keep_hidden_days(week_start, schedule)
             archive_week(week_start, schedule)
             register_roles(schedule)
             schedules[week_start] = schedule
@@ -756,18 +835,19 @@ def export_multi_xlsx():
     # Load settings once per export, not once per week, so every sheet in
     # the file is guaranteed to use the same rule.
     settings = load_settings()
+    days = work_days(settings)
     note = hours_rule_text(settings)
 
     wb = Workbook()
     wb.remove(wb.active)
     used_titles = set()
     for week_start in week_starts:
-        start_date, _end_date, date_range = week_date_range_text(week_start)
+        start_date, _end_date, date_range = week_date_range_text(week_start, days)
         rows = build_week_rows(employees, schedules.get(week_start, {}), settings)
         title = safe_sheet_title(used_titles, start_date)
         used_titles.add(title)
         ws = wb.create_sheet(title=title)
-        write_week_sheet(ws, date_range, rows, note, start_date)
+        write_week_sheet(ws, date_range, rows, days, note, start_date)
 
     file_name = f"{export_file_stem(week_starts)}.xlsx"
     file_path = os.path.join(APP_DIR, file_name)
@@ -786,26 +866,27 @@ def export_multi_pdf():
         return "Select at least one week to export.", 400
 
     settings = load_settings()
+    days = work_days(settings)
     note = hours_rule_text(settings)
 
     elements = []
     for i, week_start in enumerate(week_starts):
-        _start_date, _end_date, date_range = week_date_range_text(week_start)
+        _start_date, _end_date, date_range = week_date_range_text(week_start, days)
         rows = build_week_rows(employees, schedules.get(week_start, {}), settings)
         if i > 0:
             elements.append(PageBreak())
-        elements.extend(build_pdf_week_elements(date_range, rows, note))
+        elements.extend(build_pdf_week_elements(date_range, rows, days, note))
 
     file_name = f"{export_file_stem(week_starts)}.pdf"
     file_path = os.path.join(APP_DIR, file_name)
 
     doc = SimpleDocTemplate(
         file_path,
-        pagesize=LETTER,
-        rightMargin=36,
-        leftMargin=36,
-        topMargin=36,
-        bottomMargin=36,
+        pagesize=pdf_page_layout(days)[0],
+        rightMargin=PDF_MARGIN,
+        leftMargin=PDF_MARGIN,
+        topMargin=PDF_MARGIN,
+        bottomMargin=PDF_MARGIN,
     )
     doc.build(elements)
 
@@ -876,13 +957,16 @@ def manage_employees():
         save_employees(employees)
         return redirect(url_for("manage_employees"))
 
+    settings = load_settings()
     return render_template(
         "employees.html",
         employees=employees,
         roles=load_roles(),
         has_backup=os.path.exists(EMP_BACKUP_FILE),
-        settings=load_settings(),
+        settings=settings,
         break_options=BREAK_OPTIONS,
+        week_days=WEEK_DAYS,
+        work_days=work_days(settings),
     )
 
 
@@ -915,6 +999,25 @@ def save_break_setting():
     settings["break_min_shift_hours"] = threshold
     save_settings(settings)
     flash("Break setting saved. " + hours_rule_text(settings))
+    return redirect(url_for("manage_employees"))
+
+
+# ------------------------------------
+# WORK DAYS SETTING
+# ------------------------------------
+@app.route("/settings/days", methods=["POST"])
+def save_work_days():
+    chosen = request.form.getlist("work_days")
+    # Same rule as the break setting: check on the server. Only real day
+    # names count, and a schedule with no days at all isn't allowed.
+    if not chosen or any(day not in WEEK_DAYS for day in chosen):
+        flash("Pick at least one day. Nothing was changed.")
+        return redirect(url_for("manage_employees"))
+
+    settings = load_settings()
+    settings["work_days"] = [d for d in WEEK_DAYS if d in chosen]
+    save_settings(settings)
+    flash("Work days saved: " + ", ".join(d[:3] for d in settings["work_days"]) + ".")
     return redirect(url_for("manage_employees"))
 
 

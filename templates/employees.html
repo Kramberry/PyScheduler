@@ -51,6 +51,8 @@
     .seg label:has(input:checked) { background: var(--primary); color: var(--on-primary); }
     .seg label:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
     .break-form.is-off .when-on { opacity: .45; }
+    .day-seg label { min-width: 58px; justify-content: center; padding: 0 12px; }
+    .settings-panel + .settings-panel { margin-top: 40px; }
 
     @media (max-width: 820px) {
       .columns { grid-template-columns: 1fr; gap: 44px; }
@@ -164,8 +166,25 @@
       </section>
     </div>
 
-    {# Workplace-wide rule, set once instead of asked on every export: it's a
-       policy of the shop, not a choice someone makes each week. #}
+    {# Workplace-wide rules, set once instead of asked on every export: they're
+       policies of the shop, not choices someone makes each week. #}
+    <section class="settings-panel" aria-labelledby="days-heading">
+      <div class="panel-head">
+        <h1 class="display" id="days-heading">Days you work</h1>
+      </div>
+      <p class="panel-intro">Only these days get a column on the schedule, the print preview, and the Excel and PDF exports.</p>
+
+      <form method="POST" action="{{ url_for('save_work_days') }}" class="break-form" id="days-form">
+        <div class="seg day-seg" role="group" aria-label="Days you work">
+          {% for day in week_days %}
+          <label title="{{ day }}"><input type="checkbox" name="work_days" value="{{ day }}" {% if day in work_days %}checked{% endif %}/>{{ day[:3] }}</label>
+          {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </form>
+      <p class="hint">Turning a day off hides it; it doesn't delete anything. Shifts already on that day come back if you turn it on again.</p>
+    </section>
+
     <section class="settings-panel" aria-labelledby="break-heading">
       <div class="panel-head">
         <h1 class="display" id="break-heading">Breaks</h1>
@@ -208,6 +227,15 @@
   <script>
     document.querySelectorAll('[data-role-chip]').forEach(el => {
       el.dataset.color = roleColorIndex(el.dataset.roleChip);
+    });
+
+    // Days form: the server refuses an empty list too, but saying so here
+    // saves a round trip and keeps the boss's other ticks in place.
+    document.getElementById('days-form').addEventListener('submit', e => {
+      if (!e.target.querySelector('input[name="work_days"]:checked')) {
+        e.preventDefault();
+        showNotice('Pick at least one day to work.');
+      }
     });
 
     // Worked example under the break form, so the boss sees what the answers

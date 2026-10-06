@@ -125,6 +125,16 @@
     .day-cell:has(.pto-checkbox:checked) .pto-note { display: block; }
     .day-cell:has(.pto-checkbox:checked) .pto-toggle { color: var(--pto-ink); font-weight: 600; }
 
+    /* Six or seven work days: tighten each column so a full week still fits
+       a wide screen. Narrower screens scroll sideways, with names pinned. */
+    .grid.many-days td { padding: 10px 8px; }
+    .grid.many-days th { padding-left: 8px; padding-right: 8px; }
+    .grid.many-days td.day-cell { min-width: 162px; }
+    .grid.many-days .name-cell, .grid.many-days th.name-col { min-width: 120px; }
+    .grid.many-days .time-row { gap: 3px; }
+    .grid.many-days .time-row select { width: 74px; font-size: 12.5px; padding: 0 2px; }
+    .grid.many-days .dh-num { font-size: 30px; }
+
     .hours-col { text-align: right !important; width: 90px; }
     .hours-cell { text-align: right; white-space: nowrap; }
     .hours-badge { font-stretch: 62%; font-weight: 800; font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -226,7 +236,7 @@
 
     <div class="board">
       <div class="table-scroll">
-        <table class="grid">
+        <table class="grid{% if days | length > 5 %} many-days{% endif %}">
           <thead>
             <tr>
               <th class="name-col">Team</th>
@@ -243,19 +253,22 @@
             <tr class="emp-row" id="row-{{ eid }}">
               <td class="name-cell">{{ emp }}</td>
               {% for day in days %}
-              {% set is_pto = emp_saved and emp_saved[day].role and 'PTO' in emp_saved[day].role %}
+              {# A day can be missing from saved data (e.g. Saturday was just
+                 switched on), so treat a missing day as an empty one. #}
+              {% set day_saved = (emp_saved.get(day) if emp_saved else none) or {} %}
+              {% set is_pto = day_saved.role and 'PTO' in day_saved.role %}
               <td class="day-cell">
                 <div class="cell" id="cell-{{ eid }}-{{ day }}">
                   <div class="shift-wrapper" id="shift-{{ eid }}-{{ day }}" {% if is_pto %}style="display:none"{% endif %}>
                     <div class="time-row">
                       <select class="start-input" aria-label="{{ emp }} {{ day }} start"
                               data-emp="{{ emp }}" data-day="{{ day }}"
-                              data-value="{% if emp_saved %}{{ emp_saved[day].start | to24h }}{% endif %}"
+                              data-value="{{ day_saved.start | to24h }}"
                               onchange="recalcRow(this.dataset.emp); scheduleAutosave();"></select>
                       <span aria-hidden="true">–</span>
                       <select class="end-input" aria-label="{{ emp }} {{ day }} end"
                               data-emp="{{ emp }}" data-day="{{ day }}"
-                              data-value="{% if emp_saved %}{{ emp_saved[day].end | to24h }}{% endif %}"
+                              data-value="{{ day_saved.end | to24h }}"
                               onchange="recalcRow(this.dataset.emp); scheduleAutosave();"></select>
                     </div>
                     <div class="role-area" id="roles-{{ eid }}-{{ day }}">
@@ -311,7 +324,10 @@
 
   <script>
     const EMPLOYEES = {{ employees | tojson }};
+    // DAYS: the shop's work days (the columns shown). WEEK_DAYS: all seven,
+    // Monday first, used for dates and for keeping shifts on hidden days.
     const DAYS      = {{ days | tojson }};
+    const WEEK_DAYS = {{ week_days | tojson }};
     const SAVED     = {{ saved | tojson if saved else '{}' }};
     const ROLES     = {{ roles | tojson if roles else '[]' }};
     // Workplace settings from settings.json (break length, paid or unpaid,
@@ -533,7 +549,8 @@
       if (!schedule) return data;
       Object.keys(schedule).forEach(emp => {
         data[emp] = {};
-        DAYS.forEach(day => {
+        WEEK_DAYS.forEach(day => {
+          if (!DAYS.includes(day) && !(schedule[emp] && schedule[emp][day])) return;
           const cell = (schedule[emp] && schedule[emp][day]) || { role: [], start: '', end: '' };
           data[emp][day] = {
             role: Array.isArray(cell.role) ? cell.role : [],
@@ -558,8 +575,11 @@
     function syncActiveWeekFromDOM() {
       if (!activeWeek) return;
       const data = {};
+      const before = weekData[activeWeek] || {};
       EMPLOYEES.forEach(emp => {
-        data[emp] = {};
+        // Start from what this week already had, so shifts on days that are
+        // switched off (not in the grid) are kept rather than dropped.
+        data[emp] = Object.assign({}, before[emp] || {});
         const id = empId(emp);
         DAYS.forEach(day => {
           const ptoBox  = document.querySelector('.pto-checkbox[data-emp="' + emp + '"][data-day="' + day + '"]');
@@ -772,7 +792,8 @@
         EMPLOYEES.forEach(emp => {
           weekOut[emp] = {};
           const empData = data[emp] || {};
-          DAYS.forEach(day => {
+          WEEK_DAYS.forEach(day => {
+            if (!DAYS.includes(day) && !empData[day]) return;
             const cell = empData[day] || { role: [], start: '', end: '' };
             weekOut[emp][day] = {
               role: cell.role || [],
@@ -805,9 +826,15 @@
     function updateDateHeaders(val) {
       if (!val) return;
       const d = new Date(val + 'T00:00:00');
-      DAYS.forEach((day, i) => {
+      // Each day's date comes from its place in the full week (Saturday is
+      // always Monday + 5), not its column number, so Tue-Sat weeks are right.
+      const dateOf = day => {
         const date = new Date(d);
-        date.setDate(d.getDate() + i);
+        date.setDate(d.getDate() + WEEK_DAYS.indexOf(day));
+        return date;
+      };
+      DAYS.forEach((day, i) => {
+        const date = dateOf(day);
         const th = document.getElementById('header-' + day);
         if (!th) return;
         const showMonth = i === 0 || date.getDate() === 1;
@@ -817,11 +844,11 @@
           + '</span></div>';
         th.setAttribute('aria-label', date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }));
       });
-      const end = new Date(d);
-      end.setDate(d.getDate() + 4);
-      const sameMonth = end.getMonth() === d.getMonth();
+      const first = dateOf(DAYS[0]);
+      const end = dateOf(DAYS[DAYS.length - 1]);
+      const sameMonth = end.getMonth() === first.getMonth();
       const label = document.getElementById('week-label');
-      if (label) label.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' – '
+      if (label) label.textContent = first.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' – '
         + (sameMonth ? end.getDate() : end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
       const year = document.getElementById('week-year');
       if (year) year.textContent = end.getFullYear();

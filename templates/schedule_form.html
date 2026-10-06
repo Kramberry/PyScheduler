@@ -297,6 +297,11 @@
     <p class="footnote">
       Type a role and press Enter, or pick one from the list. Tick PTO for a full day off.
       “Add week” opens another week beside this one, and Export includes every open week.
+      {% if settings.lunch_minutes %}
+      Hours shown are paid time, with a {{ '30-minute' if settings.lunch_minutes == 30 else '1-hour' }} unpaid lunch
+      taken out of shifts of {{ '%g' | format(settings.lunch_min_shift_hours) }}+ hours
+      (<a href="{{ url_for('manage_employees') }}#lunch-heading">change</a>).
+      {% endif %}
     </p>
   </main>
 
@@ -309,6 +314,9 @@
     const DAYS      = {{ days | tojson }};
     const SAVED     = {{ saved | tojson if saved else '{}' }};
     const ROLES     = {{ roles | tojson if roles else '[]' }};
+    // Workplace settings from settings.json (unpaid lunch length + which
+    // shifts get one). Handed over from Python so both sides use the same values.
+    const SETTINGS  = {{ settings | tojson }};
 
     // Canonical role list from the server — the single source of truth for
     // "known" roles, so typos don't get silently baked into future suggestions.
@@ -407,6 +415,19 @@
       return diff > 0 ? diff / 60 : 0;
     }
 
+    // Paid hours for one worked shift: clock time minus the unpaid lunch,
+    // only on shifts long enough to get one. This is the JavaScript twin of
+    // paid_shift_hours() in app.py. The live total needs it in the browser,
+    // and the exports need it on the server. Change both together, or the
+    // screen and the Excel file will show different numbers.
+    function paidShiftHours(worked) {
+      const lunchHours = SETTINGS.lunch_minutes / 60;
+      if (lunchHours && worked >= SETTINGS.lunch_min_shift_hours) {
+        return Math.max(worked - lunchHours, 0);
+      }
+      return worked;
+    }
+
     function recalcRow(emp) {
       let total = 0;
       const id = empId(emp);
@@ -415,7 +436,7 @@
         if (ptoBox && ptoBox.checked) { total += 8; return; }
         const startEl = document.querySelector('.start-input[data-emp="' + emp + '"][data-day="' + day + '"]');
         const endEl   = document.querySelector('.end-input[data-emp="' + emp + '"][data-day="' + day + '"]');
-        if (startEl && endEl) total += calcHours(startEl.value, endEl.value);
+        if (startEl && endEl) total += paidShiftHours(calcHours(startEl.value, endEl.value));
       });
       const badge = document.getElementById('hours-' + id);
       if (badge) badge.textContent = total > 0 ? total.toFixed(1) : '–';

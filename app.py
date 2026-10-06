@@ -20,6 +20,7 @@ HISTORY_FILE = os.path.join(APP_DIR, "schedule_history.json")
 EMP_BACKUP_FILE = os.path.join(APP_DIR, "employees_backup.json")
 SCHEDULE_BACKUP_FILE = os.path.join(APP_DIR, "last_schedule_backup.json")
 HISTORY_BACKUP_FILE = os.path.join(APP_DIR, "schedule_history_backup.json")
+SETTINGS_FILE = os.path.join(APP_DIR, "settings.json")
 
 logging.basicConfig(filename=os.path.join(APP_DIR, "app.log"), level=logging.INFO)
 
@@ -108,6 +109,70 @@ def register_roles(schedule_dict):
     known = set(load_roles())
     if used - known:
         save_roles(known | used)
+
+
+# ------------------------------------
+# Workplace settings — rules that differ from one shop to the next, so they
+# live in data instead of being hard-coded. Today that's the unpaid lunch.
+# ------------------------------------
+# Allowed lunch lengths, in minutes. 0 means "no unpaid lunch".
+LUNCH_OPTIONS = (0, 30, 60)
+
+# Defaults are chosen so that turning the feature on changes nothing until
+# someone opts in: a new version must never silently change totals people
+# already trust.
+DEFAULT_SETTINGS = {
+    "lunch_minutes": 0,           # length of the unpaid lunch
+    "lunch_min_shift_hours": 6,   # only shifts at least this long get one
+}
+
+
+def load_settings():
+    """Returns the saved settings laid over the defaults.
+
+    Starting from DEFAULT_SETTINGS and updating with the file means that when
+    a new setting is added later, older settings.json files that don't have
+    it yet still work — they just pick up the default for the missing key."""
+    settings = dict(DEFAULT_SETTINGS)
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+                settings.update(json.load(f))
+        except (OSError, ValueError):
+            # A damaged file shouldn't take the whole app down; fall back to
+            # defaults and leave a trace in the log for debugging.
+            logging.warning("settings.json unreadable; using defaults")
+    return settings
+
+
+def save_settings(settings):
+    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+        json.dump(settings, f, indent=2)
+
+
+def paid_shift_hours(worked_hours, settings):
+    """Hours actually paid for one worked shift: clock time minus the unpaid
+    lunch, but only when the shift is long enough to include a lunch.
+
+    This is the ONE place the lunch rule lives on the server. Every total —
+    print preview, Excel, PDF — goes through here, so they can't disagree.
+    (The live total on the schedule page has a JavaScript twin,
+    paidShiftHours() in schedule_form.html; change both together.)"""
+    lunch_hours = settings["lunch_minutes"] / 60
+    if lunch_hours and worked_hours >= settings["lunch_min_shift_hours"]:
+        return max(worked_hours - lunch_hours, 0)
+    return worked_hours
+
+
+def hours_rule_text(settings):
+    """One plain-English sentence explaining how totals were worked out, shown
+    under every schedule so whoever reads the numbers knows what they mean."""
+    if not settings["lunch_minutes"]:
+        return "Hours are clock time; PTO counts as 8."
+    lunch = "30-minute" if settings["lunch_minutes"] == 30 else "1-hour"
+    threshold = f"{settings['lunch_min_shift_hours']:g}"
+    return (f"Hours are paid time: a {lunch} unpaid lunch is taken out of "
+            f"every shift of {threshold}+ hours. PTO counts as 8.")
 
 
 # ------------------------------------
@@ -225,10 +290,11 @@ def calculate_hours(cell_value: str) -> float:
 # Shared week-data shaping, used by the single-week and multi-week
 # Excel/PDF exports so the two formats can never drift apart.
 # ------------------------------------
-def build_week_rows(employees, schedule_dict):
+def build_week_rows(employees, schedule_dict, settings):
     """Returns [(employee, per_day, total_hours), ...] for employees who have
     at least one day of data this week. per_day[i] describes DAYS[i] as
-    {'roles': [...], 'start': str, 'end': str, 'pto': bool}."""
+    {'roles': [...], 'start': str, 'end': str, 'pto': bool}.
+    total_hours is paid time, with the unpaid lunch rule from `settings`."""
     rows = []
     for emp in employees:
         day_data = schedule_dict.get(emp, {}) if schedule_dict else {}
@@ -245,7 +311,8 @@ def build_week_rows(employees, schedule_dict):
                 total += 8
                 has_data = True
             elif start and end:
-                total += calculate_hours(f"{start} - {end}")
+                worked = calculate_hours(f"{start} - {end}")
+                total += paid_shift_hours(worked, settings)
                 has_data = True
             elif roles:
                 has_data = True
@@ -276,9 +343,10 @@ TOTAL_BG_COLOR = "DCFCE7"
 TOTAL_FONT_COLOR = "15803D"
 
 
-def write_week_sheet(ws, date_range_text, rows):
+def write_week_sheet(ws, date_range_text, rows, note=""):
     """Fills a freshly created worksheet with one week's schedule, styled to
-    match the app's export look. Used for both single- and multi-week Excel."""
+    match the app's export look. Used for both single- and multi-week Excel.
+    `note` is an optional line printed under the table (e.g. the lunch rule)."""
     headers = ["Team Member"] + DAYS + ["Total Hours"]
     num_cols = len(headers)
 
@@ -351,6 +419,16 @@ def write_week_sheet(ws, date_range_text, rows):
                     cell.font = Font(size=10)
                     cell.fill = PatternFill(start_color=dc["band"] if is_band else dc["light"], fill_type="solid")
 
+    # The note goes in AFTER the styling loop above. That loop styles every
+    # row from 3 down, so adding the note first would give it table borders
+    # and fills. Leave one blank row, then one merged, quiet line.
+    if note:
+        note_row = ws.max_row + 2
+        ws.merge_cells(start_row=note_row, start_column=1, end_row=note_row, end_column=num_cols)
+        note_cell = ws.cell(row=note_row, column=1, value=note)
+        note_cell.font = Font(italic=True, size=9, color="64748B")
+        note_cell.alignment = Alignment(horizontal="left", vertical="center")
+
     ws.freeze_panes = "A3"
 
 
@@ -387,7 +465,7 @@ def cell_pdf_paragraph(day, cell_style, pto_style):
     return ""
 
 
-def build_pdf_week_elements(date_range_text, rows):
+def build_pdf_week_elements(date_range_text, rows, note=""):
     styles = getSampleStyleSheet()
     elements = [Paragraph("<b>Weekly Schedule</b>", styles["Title"])]
     if date_range_text:
@@ -418,6 +496,11 @@ def build_pdf_week_elements(date_range_text, rows):
         ("FONTSIZE",   (0, 0), (-1, -1), 9),
     ]))
     elements.append(table)
+    if note:
+        note_style = ParagraphStyle('note', fontSize=8, leading=11,
+                                    textColor=colors.HexColor('#64748B'), fontName='Helvetica-Oblique')
+        elements.append(Spacer(1, 8))
+        elements.append(Paragraph(note, note_style))
     return elements
 
 
@@ -433,7 +516,8 @@ def index():
         employees=employees,
         days=DAYS,
         saved=saved,
-        roles=load_roles()
+        roles=load_roles(),
+        settings=load_settings(),
     )
 
 
@@ -477,17 +561,12 @@ def print_preview():
     register_roles(saved_data["schedule"])
     archive_week(week_start, saved_data["schedule"])
 
-    totals = {}
-    for emp in employees:
-        total = 0.0
-        for day in DAYS:
-            cell = saved_data["schedule"][emp][day]
-            roles = cell["role"]
-            if "PTO" in roles:
-                total += 8.0
-            elif cell["start"] and cell["end"]:
-                total += calculate_hours(f"{cell['start']} - {cell['end']}")
-        totals[emp] = total
+    # Totals come from the same build_week_rows() the Excel and PDF exports
+    # use, instead of a hand-copied loop. A copy is what lets the screen and
+    # the paper drift apart the next time the hours rule changes.
+    settings = load_settings()
+    rows = build_week_rows(employees, saved_data["schedule"], settings)
+    totals = {emp: total for emp, _per_day, total in rows}
 
     role_order = [str(r).strip().lower() for r in load_roles()]
     role_colors = {}
@@ -514,6 +593,7 @@ def print_preview():
         role_colors=role_colors,
         week_label=week_label,
         day_dates=day_dates,
+        hours_rule=hours_rule_text(settings),
     )
 
 
@@ -583,16 +663,21 @@ def export_multi_xlsx():
     if not week_starts:
         return "Select at least one week to export.", 400
 
+    # Load settings once per export, not once per week, so every sheet in
+    # the file is guaranteed to use the same rule.
+    settings = load_settings()
+    note = hours_rule_text(settings)
+
     wb = Workbook()
     wb.remove(wb.active)
     used_titles = set()
     for week_start in week_starts:
         start_date, _end_date, date_range = week_date_range_text(week_start)
-        rows = build_week_rows(employees, schedules.get(week_start, {}))
+        rows = build_week_rows(employees, schedules.get(week_start, {}), settings)
         title = safe_sheet_title(used_titles, start_date)
         used_titles.add(title)
         ws = wb.create_sheet(title=title)
-        write_week_sheet(ws, date_range, rows)
+        write_week_sheet(ws, date_range, rows, note)
 
     file_name = f"{export_file_stem(week_starts)}.xlsx"
     file_path = os.path.join(APP_DIR, file_name)
@@ -610,13 +695,16 @@ def export_multi_pdf():
     if not week_starts:
         return "Select at least one week to export.", 400
 
+    settings = load_settings()
+    note = hours_rule_text(settings)
+
     elements = []
     for i, week_start in enumerate(week_starts):
         _start_date, _end_date, date_range = week_date_range_text(week_start)
-        rows = build_week_rows(employees, schedules.get(week_start, {}))
+        rows = build_week_rows(employees, schedules.get(week_start, {}), settings)
         if i > 0:
             elements.append(PageBreak())
-        elements.extend(build_pdf_week_elements(date_range, rows))
+        elements.extend(build_pdf_week_elements(date_range, rows, note))
 
     file_name = f"{export_file_stem(week_starts)}.pdf"
     file_path = os.path.join(APP_DIR, file_name)
@@ -703,7 +791,38 @@ def manage_employees():
         employees=employees,
         roles=load_roles(),
         has_backup=os.path.exists(EMP_BACKUP_FILE),
+        settings=load_settings(),
+        lunch_options=LUNCH_OPTIONS,
     )
+
+
+# ------------------------------------
+# LUNCH BREAK SETTING
+# ------------------------------------
+@app.route("/settings/lunch", methods=["POST"])
+def save_lunch_setting():
+    settings = load_settings()
+
+    # Never trust form input just because our own <select> only offers valid
+    # choices. Anyone can send any value to this URL, and a bad one saved
+    # to settings.json would break every total until someone fixed the file
+    # by hand. Validate, and keep the old value if the new one is bad.
+    try:
+        minutes = int(request.form.get("lunch_minutes", ""))
+        threshold = float(request.form.get("lunch_min_shift_hours", ""))
+    except ValueError:
+        flash("That lunch setting wasn't valid, so nothing was changed.")
+        return redirect(url_for("manage_employees"))
+
+    if minutes not in LUNCH_OPTIONS or not (0 <= threshold <= 24):
+        flash("That lunch setting wasn't valid, so nothing was changed.")
+        return redirect(url_for("manage_employees"))
+
+    settings["lunch_minutes"] = minutes
+    settings["lunch_min_shift_hours"] = threshold
+    save_settings(settings)
+    flash("Lunch setting saved. " + hours_rule_text(settings))
+    return redirect(url_for("manage_employees"))
 
 
 @app.route("/employees/undo", methods=["POST"])

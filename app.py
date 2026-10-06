@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, send_file, redirect, url_for, flash
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
 from reportlab.lib.pagesizes import LETTER
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -357,105 +358,168 @@ def cell_excel_text(day):
     return role_text
 
 
+# Each day keeps its own colour wherever it lands, keyed by name rather than
+# column number, so adding Saturday/Sunday to DAYS can't shift Friday's
+# colour onto the wrong column. "header" is the column heading, "light" and
+# "band" alternate down the rows.
 DAY_COLORS = {
-    2: {"header": "2563EB", "light": "EFF6FF", "band": "DBEAFE"},  # Monday    - blue
-    3: {"header": "7C3AED", "light": "F5F3FF", "band": "EDE9FE"},  # Tuesday   - violet
-    4: {"header": "0D9488", "light": "F0FDFA", "band": "CCFBF1"},  # Wednesday - teal
-    5: {"header": "EA580C", "light": "FFF7ED", "band": "FFEDD5"},  # Thursday  - orange
-    6: {"header": "DB2777", "light": "FDF2F8", "band": "FCE7F3"},  # Friday    - pink
+    "Monday":    {"header": "2563EB", "light": "EFF6FF", "band": "DBEAFE"},  # blue
+    "Tuesday":   {"header": "7C3AED", "light": "F5F3FF", "band": "EDE9FE"},  # violet
+    "Wednesday": {"header": "0D9488", "light": "F0FDFA", "band": "CCFBF1"},  # teal
+    "Thursday":  {"header": "EA580C", "light": "FFF7ED", "band": "FFEDD5"},  # orange
+    "Friday":    {"header": "DB2777", "light": "FDF2F8", "band": "FCE7F3"},  # pink
+    "Saturday":  {"header": "DC2626", "light": "FEF2F2", "band": "FEE2E2"},  # red
+    "Sunday":    {"header": "4338CA", "light": "EEF2FF", "band": "E0E7FF"},  # indigo
 }
+TITLE_COLOR = "1E3A5F"
 TOTAL_HEADER_COLOR = "16A34A"
 TOTAL_BG_COLOR = "DCFCE7"
 TOTAL_FONT_COLOR = "15803D"
+PTO_BG_COLOR = "FEF3C7"
+PTO_FONT_COLOR = "92400E"
+EMPTY_BG_COLOR = "F1F5F9"
+GRID_COLOR = "CBD5E1"
+NOTE_FONT_COLOR = "64748B"
+SHEET_FONT = "Arial"
+
+FIRST_DAY_COL = 2  # column A is the name; days start at B
 
 
-def write_week_sheet(ws, date_range_text, rows, note=""):
+def write_week_sheet(ws, date_range_text, rows, note="", start_date=None):
     """Fills a freshly created worksheet with one week's schedule, styled to
     match the app's export look. Used for both single- and multi-week Excel.
-    `note` is an optional line printed under the table (e.g. the break rule)."""
-    headers = ["Team Member"] + DAYS + ["Total Hours"]
-    num_cols = len(headers)
+    `note` is an optional line printed under the table (e.g. the break rule).
+    `start_date` (the week's Monday) adds each day's date under its name.
 
-    for col_idx, text in enumerate(headers, start=1):
-        ws.cell(row=2, column=col_idx, value=text)
-    for row_idx, (emp, per_day, total) in enumerate(rows, start=3):
-        ws.cell(row=row_idx, column=1, value=emp)
-        for col_idx, day in enumerate(per_day, start=2):
-            ws.cell(row=row_idx, column=col_idx, value=cell_excel_text(day))
-        ws.cell(row=row_idx, column=num_cols, value=f"{total:.1f}")
+    Column positions are worked out from DAYS rather than typed in, so the
+    sheet stays correct if weekend days are ever added to DAYS."""
+    last_day_col = FIRST_DAY_COL + len(DAYS) - 1
+    total_col = last_day_col + 1
+    num_cols = total_col
+    first_data_row = 3
+    last_data_row = first_data_row + len(rows) - 1
 
+    def font(**kw):
+        return Font(name=SHEET_FONT, **kw)
+
+    def fill(color):
+        return PatternFill(start_color=color, end_color=color, fill_type="solid")
+
+    grid = Side(style="thin", color=GRID_COLOR)
+    border = Border(left=grid, right=grid, top=grid, bottom=grid)
+    centered = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    # Row 1: title across the whole table.
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=num_cols)
+    title = ws.cell(row=1, column=1, value=f"Weekly Schedule  ·  {date_range_text}")
+    title.font = font(bold=True, size=14, color="FFFFFF")
+    title.fill = fill(TITLE_COLOR)
+    title.alignment = Alignment(horizontal="center", vertical="center")
 
-    ws.column_dimensions["A"].width = 18
-    for col in ["B", "C", "D", "E", "F"]:
-        ws.column_dimensions[col].width = 26
-    ws.column_dimensions["G"].width = 14
+    # Row 2: headings. Each day gets its own colour, and its date when known.
+    headings = [("Team Member", TITLE_COLOR)]
+    for i, day in enumerate(DAYS):
+        text = day
+        if start_date:
+            text += "\n" + (start_date + timedelta(days=i)).strftime("%b %d").replace(" 0", " ")
+        headings.append((text, DAY_COLORS[day]["header"]))
+    headings.append(("Total Hours", TOTAL_HEADER_COLOR))
+    for col_idx, (text, color) in enumerate(headings, start=1):
+        cell = ws.cell(row=2, column=col_idx, value=text)
+        cell.font = font(bold=True, size=10, color="FFFFFF")
+        cell.fill = fill(color)
+        cell.alignment = centered
+        cell.border = border
 
-    ws.row_dimensions[1].height = 30
-    ws.row_dimensions[2].height = 22
-    for row_idx in range(3, ws.max_row + 1):
+    # One row per person, styled as it's written.
+    for band_idx, (emp, per_day, total) in enumerate(rows):
+        row_idx = first_data_row + band_idx
+        is_band = band_idx % 2 == 1
+
+        name = ws.cell(row=row_idx, column=1, value=emp)
+        name.font = font(bold=True, size=10)
+        if is_band:
+            name.fill = fill("F8FAFC")
+
+        for col_idx, (day_name, day) in enumerate(zip(DAYS, per_day), start=FIRST_DAY_COL):
+            text = cell_excel_text(day)
+            cell = ws.cell(row=row_idx, column=col_idx, value=text or None)
+            day_colors = DAY_COLORS[day_name]
+            if day["pto"]:
+                cell.font = font(bold=True, size=10, color=PTO_FONT_COLOR)
+                cell.fill = fill(PTO_BG_COLOR)
+            elif not text:
+                cell.font = font(size=10)
+                cell.fill = fill(EMPTY_BG_COLOR)
+            else:
+                cell.font = font(size=10)
+                cell.fill = fill(day_colors["band"] if is_band else day_colors["light"])
+
+        # Stored as a real number, not text like "37.5": Excel can only add up,
+        # sort and chart numbers. The number format controls how it looks.
+        total_cell = ws.cell(row=row_idx, column=total_col, value=round(total, 2))
+        total_cell.number_format = "0.0"
+        total_cell.font = font(bold=True, size=10, color=TOTAL_FONT_COLOR)
+        total_cell.fill = fill(TOTAL_BG_COLOR)
+
+        for col_idx in range(1, num_cols + 1):
+            ws.cell(row=row_idx, column=col_idx).border = border
+            ws.cell(row=row_idx, column=col_idx).alignment = centered
         ws.row_dimensions[row_idx].height = 45
 
-    title_cell = ws.cell(row=1, column=1)
-    title_cell.value = f"Weekly Schedule  ·  {date_range_text}"
-    title_cell.font = Font(bold=True, size=14, color="FFFFFF")
-    title_cell.fill = PatternFill(start_color="1E3A5F", fill_type="solid")
-    title_cell.alignment = Alignment(horizontal="center", vertical="center")
+    # Team total: a live =SUM formula, so if someone corrects an hours cell
+    # in Excel, the total updates instead of going stale.
+    next_row = first_data_row + len(rows)
+    if rows:
+        for col_idx in range(1, last_day_col + 1):
+            ws.cell(row=next_row, column=col_idx).border = border
+        label = ws.cell(row=next_row, column=1, value="Team total")
+        label.font = font(bold=True, size=10, color="FFFFFF")
+        label.fill = fill(TITLE_COLOR)
+        label.alignment = centered
+        label.border = border
+        ws.merge_cells(start_row=next_row, start_column=1, end_row=next_row, end_column=last_day_col)
+        col = get_column_letter(total_col)
+        team_total = ws.cell(row=next_row, column=total_col,
+                             value=f"=SUM({col}{first_data_row}:{col}{last_data_row})")
+        team_total.number_format = "0.0"
+        team_total.font = font(bold=True, size=11, color="FFFFFF")
+        team_total.fill = fill(TOTAL_HEADER_COLOR)
+        team_total.alignment = centered
+        team_total.border = border
+        ws.row_dimensions[next_row].height = 24
+        next_row += 1
 
-    for col_idx, cell in enumerate(ws[2], start=1):
-        cell.font = Font(bold=True, color="FFFFFF", size=10)
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-        if col_idx in DAY_COLORS:
-            cell.fill = PatternFill(start_color=DAY_COLORS[col_idx]["header"], fill_type="solid")
-        elif col_idx == num_cols:
-            cell.fill = PatternFill(start_color=TOTAL_HEADER_COLOR, fill_type="solid")
-        else:
-            cell.fill = PatternFill(start_color="1E3A5F", fill_type="solid")
-
-    thin_border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
-
-    for band_idx, row in enumerate(ws.iter_rows(min_row=3)):
-        is_band = band_idx % 2 == 1
-        for col_idx, cell in enumerate(row, start=1):
-            val = str(cell.value or "").strip()
-            cell.border = thin_border
-            cell.alignment = Alignment(wrap_text=True, horizontal="center", vertical="center")
-
-            if col_idx == 1:  # Team Member
-                cell.font = Font(bold=True, size=10)
-                if is_band:
-                    cell.fill = PatternFill(start_color="F8FAFC", fill_type="solid")
-            elif col_idx == num_cols:  # Total Hours
-                cell.font = Font(bold=True, size=10, color=TOTAL_FONT_COLOR)
-                cell.fill = PatternFill(start_color=TOTAL_BG_COLOR, fill_type="solid")
-            elif col_idx in DAY_COLORS:  # Day columns
-                dc = DAY_COLORS[col_idx]
-                if val == "PTO":
-                    cell.font = Font(bold=True, size=10, color="92400E")
-                    cell.fill = PatternFill(start_color="FEF3C7", fill_type="solid")
-                elif not val:
-                    cell.font = Font(size=10)
-                    cell.fill = PatternFill(start_color="F1F5F9", fill_type="solid")
-                else:
-                    cell.font = Font(size=10)
-                    cell.fill = PatternFill(start_color=dc["band"] if is_band else dc["light"], fill_type="solid")
-
-    # The note goes in AFTER the styling loop above. That loop styles every
-    # row from 3 down, so adding the note first would give it table borders
-    # and fills. Leave one blank row, then one merged, quiet line.
+    # The note says how hours were counted (break rule, PTO), so whoever reads
+    # the numbers knows what they mean. One blank row, then a quiet line.
     if note:
-        note_row = ws.max_row + 2
+        note_row = next_row + 1
         ws.merge_cells(start_row=note_row, start_column=1, end_row=note_row, end_column=num_cols)
         note_cell = ws.cell(row=note_row, column=1, value=note)
-        note_cell.font = Font(italic=True, size=9, color="64748B")
+        note_cell.font = font(italic=True, size=9, color=NOTE_FONT_COLOR)
         note_cell.alignment = Alignment(horizontal="left", vertical="center")
 
-    ws.freeze_panes = "A3"
+    ws.column_dimensions["A"].width = 18
+    for col_idx in range(FIRST_DAY_COL, last_day_col + 1):
+        ws.column_dimensions[get_column_letter(col_idx)].width = 24
+    ws.column_dimensions[get_column_letter(total_col)].width = 13
+    ws.row_dimensions[1].height = 30
+    ws.row_dimensions[2].height = 32 if start_date else 22
+
+    # Printing straight from Excel: landscape, every column on one page wide
+    # (as many pages tall as needed), and the title + headings repeated on
+    # each printed page.
+    ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.print_title_rows = "1:2"
+    ws.print_options.horizontalCentered = True
+    ws.page_margins.left = ws.page_margins.right = 0.4
+    ws.oddFooter.center.text = "Page &P of &N"
+    ws.oddFooter.center.size = 8
+
+    ws.freeze_panes = "B3"
 
 
 def safe_sheet_title(existing_titles, start_date):
@@ -473,7 +537,7 @@ def safe_sheet_title(existing_titles, start_date):
 
 def week_date_range_text(week_start):
     start_date = datetime.strptime(week_start, "%Y-%m-%d")
-    end_date = start_date + timedelta(days=4)
+    end_date = start_date + timedelta(days=len(DAYS) - 1)
     return start_date, end_date, f"{start_date.strftime('%b %d, %Y')} - {end_date.strftime('%b %d, %Y')}"
 
 
@@ -703,7 +767,7 @@ def export_multi_xlsx():
         title = safe_sheet_title(used_titles, start_date)
         used_titles.add(title)
         ws = wb.create_sheet(title=title)
-        write_week_sheet(ws, date_range, rows, note)
+        write_week_sheet(ws, date_range, rows, note, start_date)
 
     file_name = f"{export_file_stem(week_starts)}.xlsx"
     file_path = os.path.join(APP_DIR, file_name)

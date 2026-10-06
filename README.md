@@ -15,8 +15,9 @@ Built with Flask and plain HTML/CSS, styled like a shop-floor planning board. De
 -  Time pickers in 30-minute steps — no typing "9:00 AM" by hand
 -  Roles as colour-coded tags; each role has its own colour on screen and on paper
 -  Mark a day off (PTO) with one checkbox — it counts as 8 hours
--  Auto-calculates total hours per person
--  Print preview, or export every open week to Excel (one sheet per week) or PDF
+-  Auto-calculates total hours per person, with unpaid breaks taken out if your shop has them
+-  Choose the days you work — Monday to Friday by default, with Saturday and Sunday available
+-  Print preview, or export every open week to Excel (one sheet per week, with a team total) or PDF
 -  Export any earlier saved week from the archive
 -  Manage the team and the shared roles list on one page, with undo for removals
 -  Light and dark mode, remembered between visits
@@ -66,7 +67,7 @@ Then open your browser to `http://127.0.0.1:5000`
 3. **Mark a day off** by ticking PTO for that person and day
 4. **Reuse last week** with **Copy previous week**, then change whatever is different
 5. **Print** or **Export** (Excel or PDF) when done — Export includes every open week tab
-6. **Manage your team and roles** from **Team & roles** in the top bar
+6. **Manage your team and roles** from **Team & roles** in the top bar. The same page sets the **days you work** and your **break** (how long, and whether it's paid)
 
 ---
 
@@ -124,6 +125,7 @@ The output will be in the `dist/` folder as `app.exe`.
 
 - [x] Dark mode toggle
 - [x] Copy last week's schedule with one click
+- [x] Unpaid breaks and weekend days
 - [ ] Hide employees with no shifts
 - [ ] Cloud hosting so no download is needed
 - [ ] Login system for multiple users

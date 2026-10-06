@@ -34,12 +34,24 @@
     .link-btn:hover { color: var(--primary); text-decoration-color: currentColor; }
 
     .settings-panel { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--rule); }
-    .lunch-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
-    .lunch-form label { display: grid; gap: 6px; font-weight: 600; font-size: 13px; color: var(--ink-2); }
-    .lunch-form .select { min-width: 200px; }
-    .with-unit { display: flex; align-items: center; gap: 8px; font-weight: 400; }
+    .break-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px; }
+    .break-form .q { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+    .break-form .q-label { padding: 0; font-weight: 600; font-size: 13px; color: var(--ink-2); }
+    .break-form .select { min-width: 160px; }
+    .with-unit { display: flex; align-items: center; gap: 8px; color: var(--ink-2); }
     .with-unit .input { width: 80px; }
     .hint { margin-top: 10px; color: var(--ink-3); font-size: 13px; }
+
+    /* Paid / Unpaid: two radio buttons drawn as one segmented switch, so the
+       answer reads at a glance. Real radios underneath keep keyboard and
+       screen-reader support for free. */
+    .seg { display: inline-flex; height: 38px; border: 1px solid var(--rule-strong); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+    .seg label { position: relative; display: flex; align-items: center; padding: 0 16px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+    .seg label + label { border-left: 1px solid var(--rule-strong); }
+    .seg input { position: absolute; opacity: 0; pointer-events: none; }
+    .seg label:has(input:checked) { background: var(--primary); color: var(--on-primary); }
+    .seg label:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
+    .break-form.is-off .when-on { opacity: .45; }
 
     @media (max-width: 820px) {
       .columns { grid-template-columns: 1fr; gap: 44px; }
@@ -155,35 +167,40 @@
 
     {# Workplace-wide rule, set once instead of asked on every export: it's a
        policy of the shop, not a choice someone makes each week. #}
-    <section class="settings-panel" aria-labelledby="lunch-heading">
+    <section class="settings-panel" aria-labelledby="break-heading">
       <div class="panel-head">
-        <h1 class="display" id="lunch-heading">Lunch break</h1>
+        <h1 class="display" id="break-heading">Breaks</h1>
       </div>
-      <p class="panel-intro">If lunch is unpaid, it's taken out of each person's hours on the schedule, the print preview, and the Excel and PDF exports.</p>
+      <p class="panel-intro">A paid break stays in everyone's hours. An unpaid break is taken out of them on the schedule, the print preview, and the Excel and PDF exports.</p>
 
-      <form method="POST" action="{{ url_for('save_lunch_setting') }}" class="lunch-form">
-        <label>
-          <span>Unpaid lunch</span>
-          <select name="lunch_minutes" class="select">
-            {% for m in lunch_options %}
-            <option value="{{ m }}" {% if settings.lunch_minutes == m %}selected{% endif %}>
-              {{ 'None (lunch is paid)' if m == 0 else ('30 minutes' if m == 30 else '1 hour') }}
-            </option>
+      <form method="POST" action="{{ url_for('save_break_setting') }}" class="break-form" id="break-form">
+        <label class="q">
+          <span class="q-label">How long is the break?</span>
+          <select name="break_minutes" class="select" id="break_minutes">
+            {% for m in break_options %}
+            <option value="{{ m }}" {% if settings.break_minutes == m %}selected{% endif %}>{{ m | break_label }}</option>
             {% endfor %}
           </select>
         </label>
-        <label>
-          <span>On shifts of at least</span>
+        <fieldset class="q when-on">
+          <legend class="q-label">Is it paid?</legend>
+          <div class="seg">
+            <label><input type="radio" name="break_paid" value="paid" {% if settings.break_paid %}checked{% endif %}/>Paid</label>
+            <label><input type="radio" name="break_paid" value="unpaid" {% if not settings.break_paid %}checked{% endif %}/>Unpaid</label>
+          </div>
+        </fieldset>
+        <label class="q when-on">
+          <span class="q-label">On shifts of at least</span>
           <span class="with-unit">
-            <input type="number" name="lunch_min_shift_hours" class="input"
+            <input type="number" name="break_min_shift_hours" class="input"
                    min="0" max="24" step="0.5" required
-                   value="{{ '%g' | format(settings.lunch_min_shift_hours) }}"/>
+                   value="{{ '%g' | format(settings.break_min_shift_hours) }}"/>
             hours
           </span>
         </label>
         <button type="submit" class="btn btn-primary">Save</button>
       </form>
-      <p class="hint">Short shifts usually don't get a lunch, so a 4-hour shift stays 4 hours. PTO always counts as 8.</p>
+      <p class="hint" id="break-example"></p>
     </section>
   </main>
 
@@ -193,6 +210,32 @@
     document.querySelectorAll('[data-role-chip]').forEach(el => {
       el.dataset.color = roleColorIndex(el.dataset.roleChip);
     });
+
+    // Worked example under the break form, so the boss sees what the answers
+    // mean before saving: an 8:00 AM - 6:00 PM shift is 10 hours on the clock.
+    (function () {
+      const form = document.getElementById('break-form');
+      const hint = document.getElementById('break-example');
+      const fmt = h => (Math.round(h * 100) / 100).toString();
+      function update() {
+        const minutes = Number(form.break_minutes.value);
+        const unpaid = form.querySelector('input[name="break_paid"]:checked').value === 'unpaid';
+        const threshold = Number(form.break_min_shift_hours.value) || 0;
+        form.classList.toggle('is-off', minutes === 0);
+        if (minutes === 0) {
+          hint.textContent = 'No break: hours are clock time. PTO always counts as 8.';
+        } else if (!unpaid) {
+          hint.textContent = 'Paid break: an 8:00 AM – 6:00 PM shift counts as 10 hours. PTO always counts as 8.';
+        } else {
+          const paid = 10 >= threshold ? 10 - minutes / 60 : 10;
+          hint.textContent = 'Unpaid break: an 8:00 AM – 6:00 PM shift counts as ' + fmt(paid) + ' hours, not 10. '
+            + 'Shifts under ' + fmt(threshold) + ' hours keep all their hours. PTO always counts as 8.';
+        }
+      }
+      form.addEventListener('input', update);
+      form.addEventListener('change', update);
+      update();
+    })();
   </script>
 </body>
 </html>

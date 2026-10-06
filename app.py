@@ -113,18 +113,33 @@ def register_roles(schedule_dict):
 
 # ------------------------------------
 # Workplace settings — rules that differ from one shop to the next, so they
-# live in data instead of being hard-coded. Today that's the unpaid lunch.
+# live in data instead of being hard-coded. Today that's the break policy.
 # ------------------------------------
-# Allowed lunch lengths, in minutes. 0 means "no unpaid lunch".
-LUNCH_OPTIONS = (0, 30, 60)
+# Allowed break lengths, in minutes. 0 means "no break".
+BREAK_OPTIONS = (0, 15, 30, 45, 60)
 
-# Defaults are chosen so that turning the feature on changes nothing until
-# someone opts in: a new version must never silently change totals people
-# already trust.
+# Defaults are chosen so that adding the feature changes nothing until
+# someone opts in: a paid break leaves hours alone, and a new version must
+# never silently change totals people already trust.
 DEFAULT_SETTINGS = {
-    "lunch_minutes": 0,           # length of the unpaid lunch
-    "lunch_min_shift_hours": 6,   # only shifts at least this long get one
+    "break_minutes": 0,           # how long the break is
+    "break_paid": True,           # paid breaks stay in the hours
+    "break_min_shift_hours": 6,   # only shifts at least this long get one
 }
+
+
+def break_label(minutes, adjective=False):
+    """'30 minutes', '1 hour' — the one wording for a break length, used by
+    the settings form and every note so they all say it the same way.
+    adjective=True gives the form that goes before a noun: '30-minute break'."""
+    if not minutes:
+        return "No break"
+    if minutes == 60:
+        return "1-hour" if adjective else "1 hour"
+    return f"{minutes}-minute" if adjective else f"{minutes} minutes"
+
+
+app.jinja_env.filters['break_label'] = break_label
 
 
 def load_settings():
@@ -150,28 +165,39 @@ def save_settings(settings):
         json.dump(settings, f, indent=2)
 
 
+def unpaid_break_hours(settings):
+    """Hours to take off a long-enough shift: the break length if the break
+    is unpaid, otherwise 0 (a paid break is still paid time)."""
+    if settings["break_paid"]:
+        return 0
+    return settings["break_minutes"] / 60
+
+
 def paid_shift_hours(worked_hours, settings):
     """Hours actually paid for one worked shift: clock time minus the unpaid
-    lunch, but only when the shift is long enough to include a lunch.
+    break, but only when the shift is long enough to include a break.
+    e.g. 8:00 AM - 6:00 PM is 10 hours; with a 1-hour unpaid break it pays 9.
 
-    This is the ONE place the lunch rule lives on the server. Every total —
+    This is the ONE place the break rule lives on the server. Every total —
     print preview, Excel, PDF — goes through here, so they can't disagree.
     (The live total on the schedule page has a JavaScript twin,
     paidShiftHours() in schedule_form.html; change both together.)"""
-    lunch_hours = settings["lunch_minutes"] / 60
-    if lunch_hours and worked_hours >= settings["lunch_min_shift_hours"]:
-        return max(worked_hours - lunch_hours, 0)
+    deduct = unpaid_break_hours(settings)
+    if deduct and worked_hours >= settings["break_min_shift_hours"]:
+        return max(worked_hours - deduct, 0)
     return worked_hours
 
 
 def hours_rule_text(settings):
     """One plain-English sentence explaining how totals were worked out, shown
     under every schedule so whoever reads the numbers knows what they mean."""
-    if not settings["lunch_minutes"]:
+    if not settings["break_minutes"]:
         return "Hours are clock time; PTO counts as 8."
-    lunch = "30-minute" if settings["lunch_minutes"] == 30 else "1-hour"
-    threshold = f"{settings['lunch_min_shift_hours']:g}"
-    return (f"Hours are paid time: a {lunch} unpaid lunch is taken out of "
+    length = break_label(settings["break_minutes"], adjective=True)
+    if settings["break_paid"]:
+        return f"Hours are clock time; the {length} break is paid. PTO counts as 8."
+    threshold = f"{settings['break_min_shift_hours']:g}"
+    return (f"Hours are paid time: a {length} unpaid break is taken out of "
             f"every shift of {threshold}+ hours. PTO counts as 8.")
 
 
@@ -294,7 +320,7 @@ def build_week_rows(employees, schedule_dict, settings):
     """Returns [(employee, per_day, total_hours), ...] for employees who have
     at least one day of data this week. per_day[i] describes DAYS[i] as
     {'roles': [...], 'start': str, 'end': str, 'pto': bool}.
-    total_hours is paid time, with the unpaid lunch rule from `settings`."""
+    total_hours is paid time, with the unpaid break rule from `settings`."""
     rows = []
     for emp in employees:
         day_data = schedule_dict.get(emp, {}) if schedule_dict else {}
@@ -346,7 +372,7 @@ TOTAL_FONT_COLOR = "15803D"
 def write_week_sheet(ws, date_range_text, rows, note=""):
     """Fills a freshly created worksheet with one week's schedule, styled to
     match the app's export look. Used for both single- and multi-week Excel.
-    `note` is an optional line printed under the table (e.g. the lunch rule)."""
+    `note` is an optional line printed under the table (e.g. the break rule)."""
     headers = ["Team Member"] + DAYS + ["Total Hours"]
     num_cols = len(headers)
 
@@ -792,36 +818,39 @@ def manage_employees():
         roles=load_roles(),
         has_backup=os.path.exists(EMP_BACKUP_FILE),
         settings=load_settings(),
-        lunch_options=LUNCH_OPTIONS,
+        break_options=BREAK_OPTIONS,
     )
 
 
 # ------------------------------------
-# LUNCH BREAK SETTING
+# BREAK SETTING
 # ------------------------------------
-@app.route("/settings/lunch", methods=["POST"])
-def save_lunch_setting():
+@app.route("/settings/break", methods=["POST"])
+def save_break_setting():
     settings = load_settings()
 
-    # Never trust form input just because our own <select> only offers valid
-    # choices. Anyone can send any value to this URL, and a bad one saved
-    # to settings.json would break every total until someone fixed the file
-    # by hand. Validate, and keep the old value if the new one is bad.
+    # Never trust form input just because our own <select> and radio buttons
+    # only offer valid choices. Anyone can send any value to this URL, and a
+    # bad one saved to settings.json would break every total until someone
+    # fixed the file by hand. Validate, and keep the old values if any is bad.
+    invalid = "That break setting wasn't valid, so nothing was changed."
     try:
-        minutes = int(request.form.get("lunch_minutes", ""))
-        threshold = float(request.form.get("lunch_min_shift_hours", ""))
+        minutes = int(request.form.get("break_minutes", ""))
+        threshold = float(request.form.get("break_min_shift_hours", ""))
     except ValueError:
-        flash("That lunch setting wasn't valid, so nothing was changed.")
+        flash(invalid)
+        return redirect(url_for("manage_employees"))
+    paid = request.form.get("break_paid")
+
+    if minutes not in BREAK_OPTIONS or not (0 <= threshold <= 24) or paid not in ("paid", "unpaid"):
+        flash(invalid)
         return redirect(url_for("manage_employees"))
 
-    if minutes not in LUNCH_OPTIONS or not (0 <= threshold <= 24):
-        flash("That lunch setting wasn't valid, so nothing was changed.")
-        return redirect(url_for("manage_employees"))
-
-    settings["lunch_minutes"] = minutes
-    settings["lunch_min_shift_hours"] = threshold
+    settings["break_minutes"] = minutes
+    settings["break_paid"] = paid == "paid"
+    settings["break_min_shift_hours"] = threshold
     save_settings(settings)
-    flash("Lunch setting saved. " + hours_rule_text(settings))
+    flash("Break setting saved. " + hours_rule_text(settings))
     return redirect(url_for("manage_employees"))
 
 

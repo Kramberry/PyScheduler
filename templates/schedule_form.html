@@ -297,10 +297,10 @@
     <p class="footnote">
       Type a role and press Enter, or pick one from the list. Tick PTO for a full day off.
       “Add week” opens another week beside this one, and Export includes every open week.
-      {% if settings.lunch_minutes %}
-      Hours shown are paid time, with a {{ '30-minute' if settings.lunch_minutes == 30 else '1-hour' }} unpaid lunch
-      taken out of shifts of {{ '%g' | format(settings.lunch_min_shift_hours) }}+ hours
-      (<a href="{{ url_for('manage_employees') }}#lunch-heading">change</a>).
+      {% if settings.break_minutes and not settings.break_paid %}
+      Hours shown are paid time, with a {{ settings.break_minutes | break_label(adjective=True) }} unpaid break
+      taken out of shifts of {{ '%g' | format(settings.break_min_shift_hours) }}+ hours
+      (<a href="{{ url_for('manage_employees') }}#break-heading">change</a>).
       {% endif %}
     </p>
   </main>
@@ -314,8 +314,8 @@
     const DAYS      = {{ days | tojson }};
     const SAVED     = {{ saved | tojson if saved else '{}' }};
     const ROLES     = {{ roles | tojson if roles else '[]' }};
-    // Workplace settings from settings.json (unpaid lunch length + which
-    // shifts get one). Handed over from Python so both sides use the same values.
+    // Workplace settings from settings.json (break length, paid or unpaid,
+    // and which shifts get one). Handed over from Python so both sides use the same values.
     const SETTINGS  = {{ settings | tojson }};
 
     // Canonical role list from the server — the single source of truth for
@@ -415,15 +415,15 @@
       return diff > 0 ? diff / 60 : 0;
     }
 
-    // Paid hours for one worked shift: clock time minus the unpaid lunch,
-    // only on shifts long enough to get one. This is the JavaScript twin of
-    // paid_shift_hours() in app.py. The live total needs it in the browser,
-    // and the exports need it on the server. Change both together, or the
-    // screen and the Excel file will show different numbers.
+    // Paid hours for one worked shift: clock time minus the break if it's
+    // unpaid, only on shifts long enough to get one. This is the JavaScript
+    // twin of paid_shift_hours() in app.py. The live total needs it in the
+    // browser, and the exports need it on the server. Change both together,
+    // or the screen and the Excel file will show different numbers.
     function paidShiftHours(worked) {
-      const lunchHours = SETTINGS.lunch_minutes / 60;
-      if (lunchHours && worked >= SETTINGS.lunch_min_shift_hours) {
-        return Math.max(worked - lunchHours, 0);
+      const deduct = SETTINGS.break_paid ? 0 : SETTINGS.break_minutes / 60;
+      if (deduct && worked >= SETTINGS.break_min_shift_hours) {
+        return Math.max(worked - deduct, 0);
       }
       return worked;
     }

@@ -35,9 +35,8 @@
 
     .settings-panel { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--rule); }
     .break-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px; }
-    .break-form .q { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
-    .break-form .q-label { padding: 0; font-weight: 600; font-size: 13px; color: var(--ink-2); }
-    .break-form .select { min-width: 160px; }
+    .break-form .q { display: grid; gap: 6px; min-width: 0; }
+    .break-form .q-label { padding: 0; font-weight: 600; font-size: 13px; color: var(--ink-2); }    .break-form .select { min-width: 160px; }
     .with-unit { display: flex; align-items: center; gap: 8px; color: var(--ink-2); }
     .with-unit .input { width: 80px; }
     .hint { margin-top: 10px; color: var(--ink-3); font-size: 13px; }
@@ -182,13 +181,13 @@
             {% endfor %}
           </select>
         </label>
-        <fieldset class="q when-on">
-          <legend class="q-label">Is it paid?</legend>
+        <div class="q when-on" role="radiogroup" aria-labelledby="break-paid-label">
+          <span class="q-label" id="break-paid-label">Is it paid?</span>
           <div class="seg">
             <label><input type="radio" name="break_paid" value="paid" {% if settings.break_paid %}checked{% endif %}/>Paid</label>
             <label><input type="radio" name="break_paid" value="unpaid" {% if not settings.break_paid %}checked{% endif %}/>Unpaid</label>
           </div>
-        </fieldset>
+        </div>
         <label class="q when-on">
           <span class="q-label">On shifts of at least</span>
           <span class="with-unit">

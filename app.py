@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, send_file, redirect, url_for,
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.cell.rich_text import CellRichText, TextBlock
+from openpyxl.cell.text import InlineFont
 from reportlab.lib.pagesizes import LETTER, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -15,6 +17,7 @@ import shutil
 import webbrowser
 import logging
 from datetime import datetime, timedelta
+APP_VERSION = "2.4.1"  # keep in step with the GitHub release tag
 APP_DIR = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.abspath(".")
 EMP_FILE = os.path.join(APP_DIR, "employees.json")
 SCHEDULE_FILE = os.path.join(APP_DIR, "last_schedule.json")
@@ -372,16 +375,22 @@ def build_week_rows(employees, schedule_dict, settings):
             start = (cell.get("start") or "").strip()
             end = (cell.get("end") or "").strip()
             is_pto = "PTO" in roles
+            # hours: what this day counts toward the total.
+            # unpaid_break: hours the break rule took out of it (shown on exports).
+            hours, unpaid_break = 0.0, 0.0
             if is_pto:
-                total += 8
+                hours = 8.0
                 has_data = True
             elif start and end:
                 worked = calculate_hours(f"{start} - {end}")
-                total += paid_shift_hours(worked, settings)
+                hours = paid_shift_hours(worked, settings)
+                unpaid_break = worked - hours
                 has_data = True
             elif roles:
                 has_data = True
-            per_day.append({"roles": roles, "start": start, "end": end, "pto": is_pto})
+            total += hours
+            per_day.append({"roles": roles, "start": start, "end": end, "pto": is_pto,
+                            "hours": hours, "unpaid_break": unpaid_break})
         if has_data:
             rows.append((emp, per_day, total))
     return rows
@@ -394,6 +403,20 @@ def cell_excel_text(day):
     if day["start"] and day["end"]:
         return f"{day['start']} - {day['end']}\n{role_text}" if role_text else f"{day['start']} - {day['end']}"
     return role_text
+
+
+def day_hours_parts(day):
+    """('9 hrs', '1 hr unpaid break') for a worked day, so each day on an
+    export shows the hours it adds to the total and, when the break rule
+    took some out, how much. The second part is '' when nothing was taken
+    out, and both are '' for days off and days without times."""
+    if day["pto"] or not (day["start"] and day["end"]):
+        return "", ""
+    hours = f"{round(day['hours'], 2):g} hrs"
+    minutes = round(day["unpaid_break"] * 60)
+    if not minutes:
+        return hours, ""
+    return hours, ("1 hr" if minutes == 60 else f"{minutes} min") + " unpaid break"
 
 
 # Each day keeps its own colour wherever it lands, keyed by name rather than
@@ -483,6 +506,16 @@ def write_week_sheet(ws, date_range_text, rows, days, note="", start_date=None):
         for col_idx, (day_name, day) in enumerate(zip(days, per_day), start=FIRST_DAY_COL):
             text = cell_excel_text(day)
             cell = ws.cell(row=row_idx, column=col_idx, value=text or None)
+            hours, unpaid = day_hours_parts(day)
+            if hours:
+                # One cell, three looks: shift and roles as before, the day's
+                # hours in bold green like the totals, and any unpaid break in
+                # small grey, so it's clear which shifts lost time and why.
+                parts = [TextBlock(InlineFont(rFont=SHEET_FONT, sz=10), text + "\n"),
+                         TextBlock(InlineFont(rFont=SHEET_FONT, sz=10, b=True, color=TOTAL_FONT_COLOR), hours)]
+                if unpaid:
+                    parts.append(TextBlock(InlineFont(rFont=SHEET_FONT, sz=9, i=True, color=NOTE_FONT_COLOR), f"  ({unpaid})"))
+                cell.value = CellRichText(parts)
             day_colors = DAY_COLORS[day_name]
             if day["pto"]:
                 cell.font = font(bold=True, size=10, color=PTO_FONT_COLOR)
@@ -504,7 +537,7 @@ def write_week_sheet(ws, date_range_text, rows, days, note="", start_date=None):
         for col_idx in range(1, num_cols + 1):
             ws.cell(row=row_idx, column=col_idx).border = border
             ws.cell(row=row_idx, column=col_idx).alignment = centered
-        ws.row_dimensions[row_idx].height = 45
+        ws.row_dimensions[row_idx].height = 58  # time, roles and hours lines
 
     # Team total: a live =SUM formula, so if someone corrects an hours cell
     # in Excel, the total updates instead of going stale.
@@ -593,6 +626,10 @@ def cell_pdf_paragraph(day, cell_style, pto_style):
         text = f"{day['start']} - {day['end']}"
         if role_text:
             text += f"<br/>{role_text}"
+        hours, unpaid = day_hours_parts(day)
+        text += f"<br/><b>{hours}</b>"
+        if unpaid:
+            text += f" <font color='#64748B'><i>({unpaid})</i></font>"
         return Paragraph(text, cell_style)
     if role_text:
         return Paragraph(role_text, cell_style)
@@ -967,6 +1004,9 @@ def manage_employees():
         break_options=BREAK_OPTIONS,
         week_days=WEEK_DAYS,
         work_days=work_days(settings),
+        hours_rule=hours_rule_text(settings),
+        app_version=APP_VERSION,
+        data_dir=APP_DIR,
     )
 
 
@@ -992,6 +1032,12 @@ def save_break_setting():
 
     if minutes not in BREAK_OPTIONS or not (0 <= threshold <= 24) or paid not in ("paid", "unpaid"):
         flash(invalid)
+        return redirect(url_for("manage_employees"))
+
+    # "Unpaid" with "No break" would save fine and then take nothing out,
+    # which looks exactly like the setting being ignored. Say so instead.
+    if paid == "unpaid" and minutes == 0:
+        flash("Pick how long the unpaid break is. With “No break” there's nothing to take out, so nothing was changed.")
         return redirect(url_for("manage_employees"))
 
     settings["break_minutes"] = minutes
@@ -1030,6 +1076,63 @@ def undo_employee_delete():
     return redirect(url_for("manage_employees"))
 
 
+@app.route("/version")
+def version():
+    return APP_VERSION
+
+
+# ------------------------------------
+# STARTUP — only one ShiftDesk at a time
+# ------------------------------------
+URL = "http://127.0.0.1:5000"
+
+
+def whats_on_port():
+    """None if nothing is listening on ShiftDesk's port, else the version of
+    the ShiftDesk already running there ("old" for copies from before
+    /version existed), or "other" for some unrelated program."""
+    from urllib.request import build_opener, ProxyHandler
+    from urllib.error import HTTPError, URLError
+    # Talk to this PC directly: a work PC's proxy settings must never answer
+    # for 127.0.0.1, or its error page would look like "another program".
+    urlopen = build_opener(ProxyHandler({})).open
+    try:
+        with urlopen(URL + "/version", timeout=2) as r:
+            return r.read().decode("utf-8", "replace").strip()
+    except HTTPError:
+        pass  # something answered, just not with a version
+    except (URLError, OSError):
+        return None
+    try:
+        with urlopen(URL + "/", timeout=2) as r:
+            return "old" if "ShiftDesk" in r.read().decode("utf-8", "replace") else "other"
+    except Exception:
+        return "other"
+
+
+def tell_user(message):
+    """The .exe has no console window, so print() would go nowhere.
+    Show a normal Windows message box instead (or print when run from source)."""
+    if sys.platform == "win32":
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(None, message, "ShiftDesk", 0x40)  # info icon
+    else:
+        print(message)
+
+
 if __name__ == "__main__":
-    webbrowser.open("http://127.0.0.1:5000")
-    app.run(debug=False)
+    # ShiftDesk has no window, so closing the browser tab leaves it running.
+    # Starting a second copy used to fail silently on the busy port and open
+    # the browser on the OLD copy, so an update looked like it did nothing.
+    running = whats_on_port()
+    if running == APP_VERSION:
+        webbrowser.open(URL)  # this version is already running: just show it
+    elif running is not None:
+        what = "Another program" if running == "other" else (
+            "An older copy of ShiftDesk" + ("" if running == "old" else f" (v{running})"))
+        tell_user(f"{what} is still running in the background, so ShiftDesk v{APP_VERSION} "
+                  "can't start.\n\nOpen Task Manager (Ctrl+Shift+Esc), end \"app.exe\", "
+                  "then open ShiftDesk again.")
+    else:
+        webbrowser.open(URL)
+        app.run(debug=False)

@@ -51,6 +51,10 @@
     .seg label:has(input:checked) { background: var(--primary); color: var(--on-primary); }
     .seg label:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
     .break-form.is-off .when-on { opacity: .45; }
+    .saved-rule { margin-top: 12px; padding: 10px 14px; max-width: 75ch; background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--primary); border-radius: var(--radius); color: var(--ink-2); }
+    .saved-rule strong { color: var(--ink); }
+    .about { margin-top: 48px; color: var(--ink-3); font-size: 12.5px; }
+    .about .path { font-family: ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
     .day-seg label { min-width: 58px; justify-content: center; padding: 0 12px; }
     .settings-panel + .settings-panel { margin-top: 40px; }
 
@@ -219,7 +223,12 @@
         <button type="submit" class="btn btn-primary">Save</button>
       </form>
       <p class="hint" id="break-example"></p>
+      <p class="saved-rule"><strong>Saved setting:</strong> {{ hours_rule }}</p>
     </section>
+
+    {# Which copy of ShiftDesk this is and where it keeps its files, so it's
+       easy to tell if an old copy is still running or data is elsewhere. #}
+    <p class="about">ShiftDesk v{{ app_version }} · Data folder: <span class="path">{{ data_dir }}</span></p>
   </main>
 
   {% include "_confirm_modal.html" %}
@@ -249,7 +258,9 @@
         const unpaid = form.querySelector('input[name="break_paid"]:checked').value === 'unpaid';
         const threshold = Number(form.break_min_shift_hours.value) || 0;
         form.classList.toggle('is-off', minutes === 0);
-        if (minutes === 0) {
+        if (minutes === 0 && unpaid) {
+          hint.textContent = 'Pick how long the break is. With “No break” there\'s nothing to take out.';
+        } else if (minutes === 0) {
           hint.textContent = 'No break: hours are clock time. PTO always counts as 8.';
         } else if (!unpaid) {
           hint.textContent = 'Paid break: an 8:00 AM – 6:00 PM shift counts as 10 hours. PTO always counts as 8.';
